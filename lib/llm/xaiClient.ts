@@ -1,0 +1,99 @@
+/**
+ * xAI API Client
+ * Uses OpenAI-style Chat Completions endpoint
+ */
+
+export interface XAIMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface XAIChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: XAIMessage;
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+export class XAIClient {
+  private apiKey: string;
+  private baseUrl: string;
+  private model: string;
+
+  constructor() {
+    this.apiKey = process.env.XAI_API_KEY || "";
+    this.baseUrl = process.env.XAI_BASE_URL || "https://api.x.ai/v1";
+    this.model = process.env.XAI_MODEL || "grok-4-latest";
+
+    if (!this.apiKey) {
+      console.error("[XAIClient] XAI_API_KEY is not set!");
+      throw new Error("XAI_API_KEY environment variable is required");
+    }
+    console.log(`[XAIClient] Initialized with baseUrl: ${this.baseUrl}, model: ${this.model}`);
+  }
+
+  async chatCompletion(
+    messages: XAIMessage[],
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    }
+  ): Promise<string> {
+    const url = `${this.baseUrl}/chat/completions`;
+
+    const body = {
+      model: this.model,
+      messages,
+      stream: false,
+      temperature: options?.temperature ?? 0,
+      ...(options?.maxTokens && { max_tokens: options.maxTokens }),
+    };
+
+    try {
+      console.log(`[XAIClient] Calling ${url} with model ${this.model}`);
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[XAIClient] API error: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(
+          `xAI API error: ${response.status} ${response.statusText} - ${errorText}`
+        );
+      }
+
+      const data: XAIChatCompletionResponse = await response.json();
+
+      if (!data.choices || data.choices.length === 0) {
+        console.error("[XAIClient] No choices in response:", data);
+        throw new Error("No choices in xAI API response");
+      }
+
+      const content = data.choices[0].message.content;
+      console.log(`[XAIClient] Successfully received response (${content.length} chars)`);
+      return content;
+    } catch (error) {
+      console.error("[XAIClient] Error calling API:", error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Unknown error calling xAI API: ${error}`);
+    }
+  }
+}

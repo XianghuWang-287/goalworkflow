@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  password      String?   // For credentials auth
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  goals         Goal[]
+  badges        Badge[]
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  category      String?  // e.g., "learning", "habit", "fitness", "work"
+  goalSpecJson  Json     // GoalSpec schema
+  status        String   @default("active") // active, completed, paused, archived
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plans         Plan[]
+  tasks         Task[]
+  checkins      Checkin[]
+  weeklyReviews WeeklyReview[]
+  eventLogs     EventLog[]
+  badges        Badge[]
+  oneTimeTokens OneTimeToken[]
+
+  @@map("goals")
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  goalId      String
+  startDate   DateTime
+  planJson    Json     // Plan schema
+  version     Int      @default(1)
+  status      String   @default("active") // active, superseded, completed
+  promptVersion String? // Version of prompt used to generate
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@map("plans")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  goalId      String
+  planId      String
+  date        DateTime
+  dayIndex    Int      // 0-6 (day 0 = start date)
+  taskJson    Json     // Task schema
+  status      String   @default("pending") // pending, done, partial, missed
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, date])
+  @@map("tasks")
+}
+
+model Checkin {
+  id          String   @id @default(cuid())
+  goalId      String
+  date        DateTime
+  status      String   // done, partial, missed
+  note        String?  @db.Text
+  createdVia  String   @default("web") // email, web
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date])
+  @@index([goalId, date])
+  @@map("checkins")
+}
+
+model WeeklyReview {
+  id            String   @id @default(cuid())
+  goalId        String
+  weekIndex     Int      // 0, 1, 2, ...
+  reviewJson    Json     // WeeklyReview schema
+  chosenOption  Int?     // 0, 1, 2 (which next_week_options was chosen)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  goal          Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, weekIndex])
+  @@map("weekly_reviews")
+}
+
+model OneTimeToken {
+  id        String   @id @default(cuid())
+  purpose   String   // checkin, weekly_review
+  goalId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([token, expiresAt])
+  @@map("one_time_tokens")
+}
+
+model EventLog {
+  id        String   @id @default(cuid())
+  goalId    String
+  type      String   // goal_created, plan_generated, checkin, weekly_review, badge_earned, etc.
+  payloadJson Json   // Flexible JSON payload
+  createdAt DateTime @default(now())
+
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, createdAt])
+  @@map("event_logs")
+}
+
+model Badge {
+  id        String   @id @default(cuid())
+  userId    String
+  goalId    String
+  badgeType String  // first_checkin, streak_3, streak_7, first_weekly_review
+  earnedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, goalId, badgeType])
+  @@index([userId, goalId])
+  @@map("badges")
+}
