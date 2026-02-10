@@ -24,8 +24,63 @@ model User {
   badges        Badge[]
   accounts      Account[]
   sessions      Session[]
+  profile        UserProfile?
+  domainProfiles DomainProfile[]
 
   @@map("users")
+}
+
+model UserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wakeUpTime     String?
+  sleepTime      String?
+  workDays       Json?
+  availableSlots Json?
+  timezone       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+model DomainProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain    String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, domain])
+  @@map("domain_profiles")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  goalId    String?
+  goal      Goal?    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  agentType String
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conversations")
+}
+
+model PlanVersion {
+  id            String   @id @default(cuid())
+  planId        String
+  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  version       Int
+  content       Json
+  changeSource  String
+  changeSummary String?
+  createdAt     DateTime @default(now())
+
+  @@map("plan_versions")
 }
 
 model Account {
@@ -73,6 +128,10 @@ model Goal {
   title         String
   category      String?  // e.g., "learning", "habit", "fitness", "work"
   goalSpecJson  Json     // GoalSpec schema
+  domain        String?
+  complexity    String?
+  planStructure String?
+  constraints   Json?
   status        String   @default("active") // active, completed, paused, archived
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -85,6 +144,7 @@ model Goal {
   eventLogs     EventLog[]
   badges        Badge[]
   oneTimeTokens OneTimeToken[]
+  conversations Conversation[]
 
   @@map("goals")
 }
@@ -97,11 +157,16 @@ model Plan {
   version     Int      @default(1)
   status      String   @default("active") // active, superseded, completed
   promptVersion String? // Version of prompt used to generate
+  phases        Json?
+  totalDuration Int?
+  currentPhase  Int?     @default(0)
+  currentWeek   Int?     @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
   tasks       Task[]
+  versions      PlanVersion[]
 
   @@map("plans")
 }
@@ -113,6 +178,8 @@ model Task {
   date        DateTime
   dayIndex    Int      // 0-6 (day 0 = start date)
   taskJson    Json     // Task schema
+  specificValues Json?
+  timeSlot       String?
   status      String   @default("pending") // pending, done, partial, missed
   completedAt DateTime?
   createdAt   DateTime @default(now())

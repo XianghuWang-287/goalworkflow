@@ -1,0 +1,121 @@
+{
+  "domain": "lifestyle",
+  "displayName": "Lifestyle & Productivity",
+  "expertPersona": "You are a life organization and productivity coach who helps people declutter their lives, build effective routines, and create systems for managing their time, space, and energy. You draw on proven methodologies like Getting Things Done (GTD), KonMari, time blocking, and energy management. You believe that external order creates internal calm, and that good systems free up mental energy for what matters most. You are practical, non-judgmental, and focused on sustainable changes rather than dramatic overhauls.",
+  "profileQuestions": [
+    {
+      "field": "focusArea",
+      "question": "What area of your life do you most want to organize or improve?",
+      "type": "select",
+      "options": ["time management", "physical space (decluttering)", "daily routines", "work productivity", "work-life balance", "general life organization"],
+      "required": true
+    },
+    {
+      "field": "painPoints",
+      "question": "What are your biggest pain points or frustrations in this area?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "availableTime",
+      "question": "How much time per week can you dedicate to making these changes?",
+      "type": "number",
+      "required": true
+    },
+    {
+      "field": "priorities",
+      "question": "What are your top 3 life priorities right now?",
+      "type": "text",
+      "required": true
+    }
+  ],
+  "keyQuestions": [
+    "What specific area of your life do you want to organize or improve?",
+    "What are your biggest pain points — what frustrates you most about your current situation?",
+    "How much time per week can you dedicate to making changes?",
+    "What are your top 3 priorities in life right now?",
+    "What does your current daily routine look like from morning to night?",
+    "Have you tried any organizational systems before? What worked and what didn't?",
+    "What is your physical space like — home, workspace, digital files?",
+    "What would your ideal day look like if everything was organized?"
+  ],
+  "safetyRules": [
+    {
+      "id": "lifestyle_gradual",
+      "description": "Do not try to reorganize everything at once. Focus on one area at a time to prevent overwhelm and burnout.",
+      "check": "focusAreasAtOnce <= 2",
+      "severity": "warning"
+    },
+    {
+      "id": "lifestyle_sustainable",
+      "description": "Systems must be sustainable long-term. If a system requires more than 15 minutes of daily maintenance, simplify it.",
+      "check": "dailyMaintenanceMinutes <= 15",
+      "severity": "warning"
+    },
+    {
+      "id": "lifestyle_perfectionism",
+      "description": "Avoid perfectionism in organization. A good-enough system that you actually use beats a perfect system you abandon.",
+      "check": "systemIsSimpleEnough",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "declutteringMethods": {
+      "konMari": {
+        "principle": "Keep only items that 'spark joy'. Declutter by category, not by room.",
+        "order": ["Clothes", "Books", "Papers", "Miscellaneous (komono)", "Sentimental items"],
+        "tip": "Thank items before letting them go. This reduces guilt and makes the process easier."
+      },
+      "fourBoxMethod": {
+        "boxes": ["Keep", "Donate/Sell", "Trash", "Relocate"],
+        "process": "Go through each item in a space and immediately sort it into one of four boxes. No 'maybe' pile."
+      },
+      "oneInOneOut": "For every new item that enters your home, one item must leave. Prevents re-accumulation."
+    },
+    "timeBlocking": {
+      "description": "Assign every hour of your day to a specific task or category of tasks.",
+      "categories": [
+        "Deep work (focused, cognitively demanding tasks)",
+        "Shallow work (email, admin, routine tasks)",
+        "Personal care (exercise, meals, hygiene)",
+        "Relationships (family, friends, social)",
+        "Rest and recovery (sleep, relaxation, hobbies)"
+      ],
+      "tips": [
+        "Block your most important work during your peak energy hours",
+        "Batch similar tasks together (all emails at once, all calls at once)",
+        "Include buffer time between blocks for transitions and unexpected tasks",
+        "Review and adjust your time blocks weekly"
+      ]
+    },
+    "prioritizationFrameworks": {
+      "eisenhowerMatrix": {
+        "urgentImportant": "Do it now",
+        "notUrgentImportant": "Schedule it (this is where most meaningful work lives)",
+        "urgentNotImportant": "Delegate it or batch it",
+        "notUrgentNotImportant": "Eliminate it"
+      },
+      "mit": {
+        "name": "Most Important Tasks",
+        "description": "Identify 3 MITs each morning. Complete these before anything else. If you finish your 3 MITs, the day is a success regardless of what else happens."
+      },
+      "pareto": {
+        "name": "80/20 Rule",
+        "description": "80% of results come from 20% of efforts. Identify and focus on the vital few tasks that produce the most impact."
+      }
+    },
+    "morningRoutineTemplate": {
+      "elements": [
+        "Wake at consistent time",
+        "Hydrate (glass of water)",
+        "Move (5-15 min exercise or stretching)",
+        "Mindfulness (5-10 min meditation or journaling)",
+        "Plan (review calendar and set 3 MITs for the day)",
+        "Fuel (healthy breakfast)"
+      ],
+      "totalTime": "30-60 minutes",
+      "tip": "Start with just 2-3 elements and build up over weeks. Consistency matters more than completeness."
+    }
+  },
+  "planGuidelines": "Structure lifestyle plans around one focus area at a time. Week 1-2: Audit current state — track how you spend your time for one week, identify biggest time wasters and pain points, define your ideal routine. Week 3-4: Design systems — create a time blocking template, set up a task management system, begin decluttering one area. Week 5-8: Implement and iterate — follow the new systems daily, adjust what isn't working, build routines gradually. Week 9-12: Optimize and maintain — refine systems, establish maintenance routines, expand to additional areas if the first is stable. Include daily planning sessions (5 minutes) and weekly reviews (30 minutes). Focus on building one new routine element per week rather than overhauling everything at once."
+}

@@ -1,0 +1,135 @@
+{
+  "domain": "finance",
+  "displayName": "Personal Finance",
+  "expertPersona": "You are a personal finance advisor with expertise in budgeting, saving, debt management, and basic investing. You follow evidence-based financial planning principles and prioritize financial security and stability. You explain complex financial concepts in simple terms and help people build healthy money habits. You are not a licensed financial advisor and always recommend consulting a professional for major investment decisions, but you excel at helping people get their financial foundations in order.",
+  "profileQuestions": [
+    {
+      "field": "monthlyIncome",
+      "question": "What is your approximate monthly take-home income?",
+      "type": "number",
+      "required": true
+    },
+    {
+      "field": "monthlyExpenses",
+      "question": "What are your approximate monthly expenses?",
+      "type": "number",
+      "required": true
+    },
+    {
+      "field": "existingDebt",
+      "question": "Do you have any existing debt (credit cards, loans, mortgage)?",
+      "type": "text",
+      "required": false
+    },
+    {
+      "field": "savingsGoal",
+      "question": "What is your primary financial goal (emergency fund, debt payoff, saving for purchase, investing)?",
+      "type": "select",
+      "options": ["build emergency fund", "pay off debt", "save for a purchase", "start investing", "general budgeting"],
+      "required": true
+    },
+    {
+      "field": "riskTolerance",
+      "question": "How would you describe your risk tolerance for investments?",
+      "type": "select",
+      "options": ["conservative", "moderate", "aggressive"],
+      "required": false
+    }
+  ],
+  "keyQuestions": [
+    "What is your current monthly income and what are your major expense categories?",
+    "Do you currently have an emergency fund? If so, how many months of expenses does it cover?",
+    "What debts do you have, and what are their interest rates?",
+    "What is your primary financial goal and your timeline for achieving it?",
+    "Do you currently track your spending? If so, how?",
+    "What is your risk tolerance when it comes to investing?",
+    "Are there any major financial events coming up (job change, home purchase, education)?",
+    "Do you have any employer-matched retirement contributions available?"
+  ],
+  "safetyRules": [
+    {
+      "id": "fin_emergency_fund",
+      "description": "Always prioritize building a 3-6 month emergency fund before investing or making large purchases.",
+      "check": "hasEmergencyFund OR goalIsEmergencyFund",
+      "severity": "error"
+    },
+    {
+      "id": "fin_dont_invest_needed",
+      "description": "Never invest money you cannot afford to lose or will need within the next 1-2 years.",
+      "check": "investmentFundsAreDisposable",
+      "severity": "error"
+    },
+    {
+      "id": "fin_budget_first",
+      "description": "Establish a working budget before making investment or major savings decisions.",
+      "check": "hasBudget",
+      "severity": "warning"
+    },
+    {
+      "id": "fin_high_interest_debt",
+      "description": "Pay off high-interest debt (above 7%) before investing, except for employer-matched retirement.",
+      "check": "noHighInterestDebt OR debtPayoffPlan",
+      "severity": "warning"
+    },
+    {
+      "id": "fin_not_licensed",
+      "description": "This is general financial education, not licensed financial advice. Recommend consulting a certified financial planner for complex situations.",
+      "check": "disclaimerIncluded",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "budgetingRule503020": {
+      "needs": { "percentage": 50, "description": "Essential expenses: housing, food, transportation, insurance, minimum debt payments" },
+      "wants": { "percentage": 30, "description": "Non-essential spending: dining out, entertainment, subscriptions, hobbies" },
+      "savings": { "percentage": 20, "description": "Savings and extra debt payments: emergency fund, retirement, investments, extra loan payments" }
+    },
+    "compoundInterest": {
+      "formula": "A = P(1 + r/n)^(nt)",
+      "variables": {
+        "A": "Final amount",
+        "P": "Principal (initial investment)",
+        "r": "Annual interest rate (decimal)",
+        "n": "Number of times compounded per year",
+        "t": "Number of years"
+      },
+      "ruleOf72": "Divide 72 by the annual interest rate to estimate how many years it takes to double your money. Example: at 8% return, money doubles in ~9 years."
+    },
+    "debtPayoffStrategies": {
+      "avalanche": {
+        "method": "Pay minimums on all debts, put extra money toward the highest interest rate debt first.",
+        "advantage": "Mathematically optimal — saves the most money on interest."
+      },
+      "snowball": {
+        "method": "Pay minimums on all debts, put extra money toward the smallest balance first.",
+        "advantage": "Psychologically motivating — quick wins build momentum."
+      }
+    },
+    "expenseCategories": [
+      "Housing (rent/mortgage)",
+      "Utilities (electric, water, gas, internet)",
+      "Food (groceries and dining out)",
+      "Transportation (car payment, gas, insurance, public transit)",
+      "Insurance (health, life, renters/homeowners)",
+      "Debt payments (credit cards, student loans)",
+      "Savings and investments",
+      "Personal care and health",
+      "Entertainment and subscriptions",
+      "Clothing",
+      "Education",
+      "Gifts and donations",
+      "Miscellaneous"
+    ],
+    "financialMilestones": [
+      "Track all spending for 30 days",
+      "Create a written monthly budget",
+      "Build $1,000 starter emergency fund",
+      "Pay off all high-interest debt",
+      "Build 3-6 month full emergency fund",
+      "Contribute enough to get full employer 401k match",
+      "Open and fund a Roth IRA or equivalent",
+      "Save 15-20% of income for retirement"
+    ]
+  },
+  "planGuidelines": "Structure financial plans around clear priority order: 1) Track spending and create a budget, 2) Build a $1,000 starter emergency fund, 3) Pay off high-interest debt using avalanche or snowball method, 4) Build full 3-6 month emergency fund, 5) Invest for long-term goals. Each week should have specific, actionable financial tasks (set up auto-transfer, cancel unused subscription, call to negotiate rate). Include weekly budget review sessions. Set monthly financial check-in milestones. Use percentage-based targets rather than fixed amounts when possible to accommodate different income levels. Always include a 'fun money' category to prevent budget fatigue."
+}

@@ -1,0 +1,154 @@
+{
+  "domain": "quit",
+  "displayName": "Quitting & Breaking Bad Habits",
+  "expertPersona": "You are an addiction and behavior change specialist with expertise in helping people quit unwanted habits and substances. You understand the neuroscience of addiction, the psychology of behavior change, and the practical challenges of breaking deeply ingrained patterns. You draw on the Transtheoretical Model (Stages of Change), motivational interviewing, and cognitive behavioral approaches. You are compassionate and non-judgmental — you understand that relapse is a normal part of recovery, not a moral failure. You always recommend medical supervision for substance withdrawal and professional support for severe addictions.",
+  "profileQuestions": [
+    {
+      "field": "quitTarget",
+      "question": "What do you want to quit or reduce?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "duration",
+      "question": "How long have you been doing this?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "frequency",
+      "question": "How often do you currently engage in this behavior?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "previousAttempts",
+      "question": "Have you tried to quit before? What happened?",
+      "type": "text",
+      "required": false
+    },
+    {
+      "field": "triggers",
+      "question": "What situations, emotions, or people trigger this behavior?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "supportSystem",
+      "question": "Do you have people who support your decision to quit?",
+      "type": "select",
+      "options": ["strong support", "some support", "limited support", "no support"],
+      "required": true
+    }
+  ],
+  "keyQuestions": [
+    "What specifically do you want to quit, and why now?",
+    "How long have you been doing this, and how frequently?",
+    "What are your main triggers — situations, emotions, people, or times of day?",
+    "Have you tried to quit before? What worked and what caused relapse?",
+    "Do you have a support system — friends, family, or groups who support this change?",
+    "Are there health risks associated with suddenly stopping (relevant for substances)?",
+    "What do you currently do instead when you resist the urge?",
+    "What would your life look like without this habit?"
+  ],
+  "safetyRules": [
+    {
+      "id": "quit_medical_supervision",
+      "description": "Withdrawal from alcohol, benzodiazepines, and opioids can be medically dangerous. Always recommend medical supervision for substance withdrawal.",
+      "check": "isSubstance ? hasMedicalSupervision : true",
+      "severity": "error"
+    },
+    {
+      "id": "quit_gradual_reduction",
+      "description": "Gradual reduction (tapering) is generally safer and more sustainable than cold turkey for established habits.",
+      "check": "planIncludesTapering OR habitIsMild",
+      "severity": "warning"
+    },
+    {
+      "id": "quit_relapse_normal",
+      "description": "Relapse is a normal part of the change process, not a failure. Plans must include relapse prevention and recovery strategies.",
+      "check": "planIncludesRelapseStrategy",
+      "severity": "error"
+    },
+    {
+      "id": "quit_professional_help",
+      "description": "For severe addictions (substances, gambling, eating disorders), always recommend professional treatment programs alongside self-help strategies.",
+      "check": "severityLevel < 8 OR professionalReferral",
+      "severity": "error"
+    },
+    {
+      "id": "quit_replacement_behavior",
+      "description": "Every quit plan must include healthy replacement behaviors. Simply removing a habit without replacing it creates a vacuum that leads to relapse.",
+      "check": "hasReplacementBehaviors",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "stagesOfChange": {
+      "model": "Transtheoretical Model (Prochaska & DiClemente)",
+      "stages": [
+        { "name": "Precontemplation", "description": "Not yet considering change. May not see the behavior as a problem.", "approach": "Raise awareness, provide information without pressure." },
+        { "name": "Contemplation", "description": "Aware of the problem, considering change but ambivalent.", "approach": "Explore pros and cons, address ambivalence, build motivation." },
+        { "name": "Preparation", "description": "Intending to take action soon. Making plans and gathering resources.", "approach": "Help create a concrete plan, set a quit date, prepare environment." },
+        { "name": "Action", "description": "Actively modifying behavior. Highest risk of relapse.", "approach": "Provide support, reinforce commitment, manage triggers." },
+        { "name": "Maintenance", "description": "Sustaining the change over time. Building new identity.", "approach": "Prevent relapse, build new routines, celebrate milestones." }
+      ]
+    },
+    "triggerManagement": {
+      "types": [
+        { "type": "Emotional", "examples": ["stress", "boredom", "anxiety", "loneliness", "celebration"], "strategy": "Develop alternative coping mechanisms for each emotional trigger." },
+        { "type": "Environmental", "examples": ["specific locations", "time of day", "seeing others do it", "availability"], "strategy": "Modify environment to remove cues. Avoid trigger locations initially." },
+        { "type": "Social", "examples": ["peer pressure", "social gatherings", "specific people"], "strategy": "Communicate boundaries, find supportive social alternatives, practice refusal skills." },
+        { "type": "Physical", "examples": ["withdrawal symptoms", "fatigue", "hunger"], "strategy": "Address physical needs proactively. Use healthy substitutes." }
+      ],
+      "urgeManagement": {
+        "surfTheUrge": "Observe the urge without acting on it. Urges typically peak and pass within 15-30 minutes.",
+        "delay": "Tell yourself 'I'll wait 10 minutes.' Often the urge passes.",
+        "distract": "Engage in a pre-planned alternative activity when urges hit.",
+        "deepBreathing": "4-7-8 breathing technique to calm the nervous system during cravings."
+      }
+    },
+    "replacementBehaviors": {
+      "forStress": ["exercise", "deep breathing", "calling a friend", "journaling", "walking outdoors"],
+      "forBoredom": ["reading", "puzzles", "learning something new", "creative projects", "volunteering"],
+      "forSocialSituations": ["sparkling water with lime (for alcohol)", "gum or mints (for smoking)", "arriving with a supportive friend"],
+      "forOralFixation": ["sugar-free gum", "carrot sticks", "toothpicks", "water bottle"],
+      "forHandHabit": ["stress ball", "fidget tool", "rubber band on wrist", "doodling"]
+    },
+    "withdrawalTimelines": {
+      "nicotine": {
+        "peak": "2-3 days",
+        "physicalDuration": "2-4 weeks",
+        "psychologicalDuration": "Several months",
+        "commonSymptoms": ["irritability", "anxiety", "difficulty concentrating", "increased appetite", "cravings"]
+      },
+      "caffeine": {
+        "peak": "1-2 days",
+        "physicalDuration": "2-9 days",
+        "commonSymptoms": ["headache", "fatigue", "irritability", "difficulty concentrating"]
+      },
+      "sugar": {
+        "peak": "3-5 days",
+        "physicalDuration": "1-2 weeks",
+        "commonSymptoms": ["cravings", "headache", "fatigue", "mood swings"]
+      },
+      "socialMedia": {
+        "peak": "3-7 days",
+        "psychologicalDuration": "2-4 weeks",
+        "commonSymptoms": ["FOMO", "boredom", "anxiety", "phantom notifications", "urge to check"]
+      },
+      "note": "Alcohol and benzodiazepine withdrawal can be life-threatening. Always seek medical supervision."
+    },
+    "milestones": {
+      "hours24": "First full day — the hardest part. Celebrate this.",
+      "days3": "Physical withdrawal symptoms typically peak around day 3.",
+      "week1": "First week complete — you've proven you can do this.",
+      "days21": "Three weeks — new neural pathways are forming.",
+      "days30": "One month — significant milestone. Habits are weakening.",
+      "days66": "Average time for a new behavior to become automatic.",
+      "days90": "Three months — major milestone. Relapse risk decreases significantly.",
+      "year1": "One year — identity shift is solidifying. You are someone who doesn't do this."
+    }
+  },
+  "planGuidelines": "Structure quit plans around the Stages of Change model. Week 1 (Preparation): Set a quit date, identify all triggers and write them down, prepare replacement behaviors for each trigger, modify environment (remove cues and access), tell support system about your plan, stock up on substitutes. Week 2-3 (Action): Execute the quit. Use tapering if appropriate. Daily check-ins on triggers encountered and how they were handled. Have a crisis plan for intense urges (call someone, go for a walk, use the 10-minute delay technique). Week 4-6 (Early Maintenance): Build new routines that fill the time previously occupied by the habit. Address underlying needs the habit was meeting. Weekly review of triggers and close calls. Week 7-10 (Maintenance): Strengthen new identity. Plan for high-risk situations (holidays, stress, social events). Develop long-term coping strategies. Include relapse prevention: if a slip happens, treat it as data (what triggered it?), not as failure. Get back on track immediately — never let one slip become two."
+}

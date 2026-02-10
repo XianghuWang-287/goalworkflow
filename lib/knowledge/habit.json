@@ -1,0 +1,117 @@
+{
+  "domain": "habit",
+  "displayName": "Habit Formation",
+  "expertPersona": "You are a behavioral psychologist specializing in habit formation, with deep expertise in the science of behavior change. You draw on research from BJ Fogg, James Clear, Charles Duhigg, and other leading habit researchers. You understand that lasting change comes from systems, not willpower. You help people design their environment and routines to make good habits automatic and bad habits difficult. You are patient, non-judgmental, and focused on tiny wins that compound over time.",
+  "profileQuestions": [
+    {
+      "field": "targetHabit",
+      "question": "What specific habit do you want to build or change?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "currentRoutine",
+      "question": "Describe your current daily routine (wake time, work, meals, sleep).",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "previousAttempts",
+      "question": "Have you tried to build this habit before? What happened?",
+      "type": "text",
+      "required": false
+    },
+    {
+      "field": "motivation",
+      "question": "On a scale of 1-10, how motivated are you to make this change?",
+      "type": "number",
+      "required": true
+    }
+  ],
+  "keyQuestions": [
+    "What specific habit do you want to build, and what does success look like?",
+    "What is your current daily routine — when do you wake up, work, eat, and sleep?",
+    "What triggers or cues currently exist in your environment related to this habit?",
+    "What has prevented you from maintaining this habit in the past?",
+    "Is there an existing habit you do consistently that we could stack the new habit onto?",
+    "What is your environment like — home, workspace, social circle?",
+    "How will you track your progress?",
+    "Who can hold you accountable?"
+  ],
+  "safetyRules": [
+    {
+      "id": "habit_start_small",
+      "description": "Always start with a habit so small it feels almost trivial. The initial version should take less than 2 minutes.",
+      "check": "initialHabitDurationMinutes <= 2",
+      "severity": "error"
+    },
+    {
+      "id": "habit_one_at_a_time",
+      "description": "Focus on building one new habit at a time. Do not attempt to change more than one major behavior simultaneously.",
+      "check": "simultaneousNewHabits <= 1",
+      "severity": "warning"
+    },
+    {
+      "id": "habit_no_punishment",
+      "description": "Never use punishment or negative self-talk for missed days. Missing once is not failure — missing twice is the start of a new pattern.",
+      "check": "planIncludesRecoveryStrategy",
+      "severity": "warning"
+    },
+    {
+      "id": "habit_identity_based",
+      "description": "Frame habits around identity change ('become a runner') rather than outcomes ('lose 10 lbs').",
+      "check": "goalFramedAsIdentity",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "habitLoop": {
+      "cue": "The trigger that initiates the behavior. Can be time-based, location-based, emotional, or linked to a preceding action.",
+      "craving": "The motivational force behind the habit. The desire for the reward, not the reward itself.",
+      "routine": "The actual behavior or action you perform.",
+      "reward": "The benefit you gain from the behavior. Must satisfy the craving to reinforce the loop."
+    },
+    "formationTimeline": {
+      "minimumDays": 21,
+      "averageDays": 66,
+      "rangeDays": "18-254",
+      "source": "Phillippa Lally, European Journal of Social Psychology (2009)",
+      "note": "The 21-day myth is too optimistic for most habits. On average, it takes 66 days for a behavior to become automatic, but this varies widely based on complexity and individual differences."
+    },
+    "implementationIntentions": {
+      "description": "Pre-deciding when and where you will perform a new habit dramatically increases follow-through.",
+      "formula": "When [SITUATION], I will [BEHAVIOR].",
+      "examples": [
+        "When I pour my morning coffee, I will write in my journal for 2 minutes.",
+        "When I sit down at my desk after lunch, I will close all social media tabs.",
+        "When I put on my pajamas, I will set out my workout clothes for tomorrow."
+      ]
+    },
+    "habitStacking": {
+      "description": "Link a new habit to an existing one by using the completion of one behavior as the cue for the next.",
+      "formula": "After I [CURRENT HABIT], I will [NEW HABIT].",
+      "examples": [
+        "After I brush my teeth, I will meditate for 60 seconds.",
+        "After I sit down for dinner, I will say one thing I'm grateful for.",
+        "After I close my laptop at end of work, I will change into workout clothes."
+      ]
+    },
+    "environmentDesign": {
+      "makeItObvious": "Place cues for good habits in visible locations. Remove cues for bad habits from your environment.",
+      "makeItEasy": "Reduce friction for good habits (prep the night before, set out equipment). Increase friction for bad habits (delete apps, add steps).",
+      "twoMinuteRule": "Scale any habit down to a 2-minute version. 'Read before bed' becomes 'Read one page'. 'Run 3 miles' becomes 'Put on running shoes'.",
+      "choiceArchitecture": "Design your environment so the default choice is the desired behavior."
+    },
+    "streakScience": {
+      "dontBreakTheChain": "Visual streak tracking (calendar X method) leverages loss aversion to maintain consistency.",
+      "neverMissTwice": "The most important rule: if you miss one day, get back on track immediately. One miss is an accident; two is the start of a new habit.",
+      "recoveryProtocol": "After a miss: 1) Don't judge yourself, 2) Identify what caused the miss, 3) Do a scaled-down version today, 4) Recommit to the full version tomorrow."
+    },
+    "rewardScheduling": {
+      "immediate": "Pair the habit with an immediate reward (favorite podcast during exercise, treat after study session).",
+      "variable": "Occasional surprise rewards are more motivating than predictable ones (lottery-based rewards).",
+      "intrinsic": "Over time, shift from external rewards to intrinsic satisfaction (the feeling of accomplishment, identity reinforcement)."
+    }
+  },
+  "planGuidelines": "Structure habit plans around consistency over intensity. Week 1-2: Establish the 2-minute version of the habit with a clear cue and reward. Focus solely on showing up. Week 3-4: Gradually increase duration or intensity by 10-20% while maintaining the streak. Week 5-8: Build to the target habit level. Introduce habit stacking if appropriate. Week 9-12: Consolidate and make the habit automatic. Begin reducing reliance on external rewards. Every plan must include: a specific implementation intention (when/where), an environment design change, a tracking method, an accountability mechanism, and a recovery protocol for missed days. Never plan for perfection — plan for consistency with built-in recovery."
+}

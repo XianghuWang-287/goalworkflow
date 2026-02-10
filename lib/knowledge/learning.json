@@ -1,0 +1,149 @@
+{
+  "domain": "learning",
+  "displayName": "Learning & Skill Acquisition",
+  "expertPersona": "You are an expert learning coach and educator with deep knowledge of cognitive science, pedagogy, and accelerated learning techniques. You have helped hundreds of students master new skills efficiently, from programming languages to musical instruments to foreign languages. You understand how memory works, how to structure practice for maximum retention, and how to maintain motivation through the inevitable plateaus. You tailor learning strategies to individual learning styles and available time.",
+  "profileQuestions": [
+    {
+      "field": "subject",
+      "question": "What skill or subject do you want to learn?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "currentLevel",
+      "question": "What is your current level with this skill?",
+      "type": "select",
+      "options": ["complete beginner", "some exposure", "intermediate", "advanced"],
+      "required": true
+    },
+    {
+      "field": "learningStyle",
+      "question": "How do you learn best?",
+      "type": "select",
+      "options": ["reading/writing", "visual (videos, diagrams)", "hands-on practice", "listening/discussion"],
+      "required": true
+    },
+    {
+      "field": "hoursPerWeek",
+      "question": "How many hours per week can you dedicate to learning?",
+      "type": "number",
+      "required": true
+    },
+    {
+      "field": "resources",
+      "question": "What learning resources do you have access to (courses, books, mentors, tools)?",
+      "type": "text",
+      "required": false
+    }
+  ],
+  "keyQuestions": [
+    "What specific skill or subject do you want to learn, and to what level of proficiency?",
+    "What is your current knowledge level — complete beginner, some familiarity, or intermediate?",
+    "How do you learn best — reading, watching videos, hands-on practice, or discussion?",
+    "How many hours per week can you realistically dedicate to focused learning?",
+    "Do you have access to specific resources (courses, books, mentors, software, tools)?",
+    "Is there a deadline or milestone driving this learning goal (exam, job requirement, project)?",
+    "What related skills or knowledge do you already have that might transfer?",
+    "Have you tried learning this before? What worked and what didn't?"
+  ],
+  "safetyRules": [
+    {
+      "id": "learn_burnout",
+      "description": "Limit focused learning sessions to 90 minutes maximum. Take breaks every 25-50 minutes.",
+      "check": "sessionDurationMinutes <= 90 AND breakFrequencyMinutes <= 50",
+      "severity": "warning"
+    },
+    {
+      "id": "learn_spaced_practice",
+      "description": "Never cram. Distribute practice across multiple days for better retention.",
+      "check": "practiceDistributedAcrossDays",
+      "severity": "error"
+    },
+    {
+      "id": "learn_fundamentals",
+      "description": "Do not skip foundational concepts to rush to advanced material. Gaps in fundamentals will compound.",
+      "check": "prerequisitesCompleted",
+      "severity": "error"
+    },
+    {
+      "id": "learn_active_recall",
+      "description": "Passive re-reading is ineffective. Plans must include active recall and testing.",
+      "check": "includesActiveRecall",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "spacedRepetition": {
+      "description": "Review material at increasing intervals to move it from short-term to long-term memory.",
+      "intervals": {
+        "firstReview": "1 day after initial learning",
+        "secondReview": "3 days after first review",
+        "thirdReview": "7 days after second review",
+        "fourthReview": "14 days after third review",
+        "fifthReview": "30 days after fourth review",
+        "maintenance": "Every 30-60 days thereafter"
+      },
+      "tools": ["Anki", "SuperMemo", "Quizlet", "handwritten flashcards"]
+    },
+    "pomodoroTechnique": {
+      "workDuration": 25,
+      "shortBreak": 5,
+      "longBreak": 15,
+      "longBreakAfter": 4,
+      "description": "Work in 25-minute focused blocks with 5-minute breaks. After 4 blocks, take a 15-minute break. This maintains focus and prevents fatigue."
+    },
+    "bloomsTaxonomy": {
+      "levels": [
+        { "level": 1, "name": "Remember", "description": "Recall facts and basic concepts", "verbs": ["define", "list", "memorize", "recall"] },
+        { "level": 2, "name": "Understand", "description": "Explain ideas or concepts", "verbs": ["describe", "explain", "summarize", "paraphrase"] },
+        { "level": 3, "name": "Apply", "description": "Use information in new situations", "verbs": ["implement", "solve", "use", "demonstrate"] },
+        { "level": 4, "name": "Analyze", "description": "Draw connections among ideas", "verbs": ["compare", "contrast", "examine", "differentiate"] },
+        { "level": 5, "name": "Evaluate", "description": "Justify a decision or course of action", "verbs": ["judge", "critique", "assess", "argue"] },
+        { "level": 6, "name": "Create", "description": "Produce new or original work", "verbs": ["design", "construct", "develop", "author"] }
+      ]
+    },
+    "skillAcquisitionStages": {
+      "stages": [
+        { "name": "Cognitive", "description": "Understanding what to do. Heavy mental effort, many errors, slow performance.", "duration": "Days to weeks" },
+        { "name": "Associative", "description": "Practicing and refining. Fewer errors, developing consistency, still requires focus.", "duration": "Weeks to months" },
+        { "name": "Autonomous", "description": "Performing automatically. Minimal conscious effort, consistent performance, can multitask.", "duration": "Months to years" }
+      ],
+      "source": "Fitts and Posner (1967)"
+    },
+    "deliberatePractice": {
+      "principles": [
+        "Focus on specific weaknesses, not just what you're already good at",
+        "Get immediate feedback on performance",
+        "Practice at the edge of your current ability (not too easy, not too hard)",
+        "Maintain full concentration during practice sessions",
+        "Have a clear mental model of expert performance to compare against"
+      ],
+      "source": "Anders Ericsson"
+    },
+    "retrievalPractice": {
+      "description": "Testing yourself on material is far more effective than re-reading or highlighting.",
+      "methods": ["Flashcards", "Practice problems", "Teaching others", "Writing from memory", "Self-quizzing"]
+    }
+  },
+  "phaseTemplates": [
+    {
+      "name": "Foundation",
+      "durationWeeks": 3,
+      "focus": "Build core vocabulary and fundamental concepts. Focus on understanding the big picture and key terminology. Use spaced repetition for memorization. Aim for Bloom's levels 1-2 (Remember, Understand).",
+      "intensityLevel": 4
+    },
+    {
+      "name": "Application",
+      "durationWeeks": 5,
+      "focus": "Apply knowledge through projects, exercises, and real-world practice. Focus on Bloom's levels 3-4 (Apply, Analyze). Introduce deliberate practice on weak areas.",
+      "intensityLevel": 7
+    },
+    {
+      "name": "Mastery",
+      "durationWeeks": 4,
+      "focus": "Deepen expertise through complex projects, teaching others, and creative application. Focus on Bloom's levels 5-6 (Evaluate, Create). Consolidate knowledge and fill gaps.",
+      "intensityLevel": 8
+    }
+  ],
+  "planGuidelines": "Structure learning plans in 3 phases: Foundation (3 weeks), Application (5 weeks), and Mastery (4 weeks). Each study session should include: 10 min review of previous material (spaced repetition), 25-50 min of new material or practice, 10 min of active recall testing. Use the Pomodoro technique for longer sessions. Alternate between input (reading, watching) and output (practicing, building, teaching). Include weekly self-assessments to identify gaps. Build a portfolio of projects or demonstrations of skill. Schedule review sessions at spaced intervals. Mix different types of practice (interleaving) rather than drilling one topic repeatedly. Set specific, measurable milestones for each phase (e.g., 'complete 3 practice projects' not 'get better at coding')."
+}

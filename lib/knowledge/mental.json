@@ -1,0 +1,129 @@
+{
+  "domain": "mental",
+  "displayName": "Mental Wellness",
+  "expertPersona": "You are a mental wellness coach specializing in stress management, mindfulness, emotional resilience, and healthy coping strategies. You draw on evidence-based approaches including cognitive behavioral techniques, mindfulness-based stress reduction (MBSR), and positive psychology. You are warm, empathetic, and non-judgmental. You help people build sustainable mental health habits while being clear that you are a wellness coach, not a therapist or psychiatrist, and you always recommend professional help when appropriate.",
+  "profileQuestions": [
+    {
+      "field": "primaryConcern",
+      "question": "What is your primary mental wellness concern?",
+      "type": "select",
+      "options": ["stress management", "anxiety reduction", "better sleep", "emotional regulation", "building confidence", "general wellbeing"],
+      "required": true
+    },
+    {
+      "field": "stressLevel",
+      "question": "On a scale of 1-10, what is your current stress level?",
+      "type": "number",
+      "required": true
+    },
+    {
+      "field": "sleepQuality",
+      "question": "How would you rate your sleep quality?",
+      "type": "select",
+      "options": ["poor (less than 5 hours or very disrupted)", "fair (5-6 hours or somewhat disrupted)", "good (7-8 hours, mostly restful)", "excellent (8+ hours, consistently restful)"],
+      "required": true
+    },
+    {
+      "field": "socialSupport",
+      "question": "Do you have a support system (friends, family, community)?",
+      "type": "select",
+      "options": ["strong support system", "moderate support", "limited support", "isolated"],
+      "required": true
+    }
+  ],
+  "keyQuestions": [
+    "What is your primary mental wellness concern right now?",
+    "On a scale of 1-10, how would you rate your current stress level?",
+    "How is your sleep — how many hours per night and how restful?",
+    "Do you have a support system of friends, family, or community?",
+    "Are you currently seeing a therapist or mental health professional?",
+    "What coping strategies do you currently use when stressed or overwhelmed?",
+    "How does your mental state affect your daily functioning (work, relationships, self-care)?",
+    "Have you practiced mindfulness, meditation, or journaling before?"
+  ],
+  "safetyRules": [
+    {
+      "id": "mental_not_therapy",
+      "description": "This is wellness coaching, not therapy. Always include a disclaimer that this does not replace professional mental health treatment.",
+      "check": "disclaimerIncluded",
+      "severity": "error"
+    },
+    {
+      "id": "mental_severe_symptoms",
+      "description": "If the user describes severe symptoms (suicidal thoughts, self-harm, inability to function, substance abuse), immediately recommend professional help and provide crisis resources.",
+      "check": "noSevereSymptoms OR professionalReferralGiven",
+      "severity": "error"
+    },
+    {
+      "id": "mental_gradual_changes",
+      "description": "Mental wellness improvements should be gradual. Do not promise rapid transformation or set unrealistic expectations.",
+      "check": "expectationsAreGradual",
+      "severity": "warning"
+    },
+    {
+      "id": "mental_no_medication_advice",
+      "description": "Never provide advice about medication, dosages, or suggest stopping prescribed medication.",
+      "check": "noMedicationAdvice",
+      "severity": "error"
+    }
+  ],
+  "referenceData": {
+    "stressManagement": {
+      "physiological": [
+        "Deep breathing (4-7-8 technique: inhale 4 seconds, hold 7, exhale 8)",
+        "Progressive muscle relaxation (tense and release each muscle group)",
+        "Regular physical exercise (30 minutes, 3-5 times per week)",
+        "Adequate sleep (7-9 hours per night)"
+      ],
+      "cognitive": [
+        "Cognitive reframing — challenge negative thought patterns",
+        "Worry time — schedule 15 minutes to worry, then move on",
+        "Gratitude practice — write 3 things you're grateful for daily",
+        "Perspective taking — ask 'Will this matter in 5 years?'"
+      ],
+      "behavioral": [
+        "Time management and prioritization",
+        "Setting boundaries (saying no)",
+        "Social connection and support seeking",
+        "Engaging in enjoyable activities and hobbies"
+      ]
+    },
+    "mindfulnessBasics": {
+      "definition": "Paying attention to the present moment, on purpose, without judgment.",
+      "practices": [
+        { "name": "Breath awareness", "duration": "5-10 minutes", "description": "Focus on the sensation of breathing. When mind wanders, gently return attention to breath." },
+        { "name": "Body scan", "duration": "15-20 minutes", "description": "Systematically notice sensations in each part of the body from toes to head." },
+        { "name": "Mindful walking", "duration": "10-15 minutes", "description": "Walk slowly, paying attention to each step, the ground beneath you, and your surroundings." },
+        { "name": "Loving-kindness meditation", "duration": "10-15 minutes", "description": "Direct feelings of warmth and goodwill toward yourself and others." }
+      ],
+      "startingRecommendation": "Begin with 5 minutes of breath awareness daily. Increase by 1-2 minutes per week."
+    },
+    "sleepHygiene": {
+      "tips": [
+        "Maintain a consistent sleep and wake time, even on weekends",
+        "Create a dark, cool, quiet sleep environment (65-68°F / 18-20°C)",
+        "Avoid screens for 30-60 minutes before bed (blue light suppresses melatonin)",
+        "Limit caffeine after 2 PM and alcohol within 3 hours of bedtime",
+        "Establish a calming pre-sleep routine (reading, stretching, warm bath)",
+        "Use the bed only for sleep — avoid working or watching TV in bed",
+        "If you can't sleep after 20 minutes, get up and do something calming until drowsy"
+      ]
+    },
+    "journalingPrompts": [
+      "What am I feeling right now, and where do I feel it in my body?",
+      "What went well today, and what contributed to that?",
+      "What is causing me stress, and what is within my control?",
+      "What would I tell a friend in my situation?",
+      "What am I grateful for today?"
+    ],
+    "crisisResources": {
+      "note": "Always provide these if user shows signs of crisis",
+      "resources": [
+        "National Suicide Prevention Lifeline: 988 (US)",
+        "Crisis Text Line: Text HOME to 741741 (US)",
+        "International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/"
+      ]
+    }
+  },
+  "planGuidelines": "Structure mental wellness plans around building daily micro-habits rather than intensive sessions. Week 1-2: Establish a baseline — start a mood journal, practice 5 minutes of mindfulness daily, improve one sleep hygiene habit. Week 3-4: Build on the foundation — increase mindfulness to 10 minutes, add a stress management technique, establish a consistent sleep schedule. Week 5-8: Deepen practice — introduce cognitive reframing exercises, build social connections, develop a personal stress toolkit. Week 9-12: Consolidate and maintain — create a sustainable daily wellness routine, develop resilience strategies for setbacks. Always include: daily mood tracking, at least one mindfulness practice, one physical activity, one social connection per week. Include the disclaimer that this is wellness coaching and not a substitute for professional mental health treatment."
+}

@@ -1,0 +1,65 @@
+{
+  "domain": "_base",
+  "displayName": "General Goal Setting",
+  "expertPersona": "You are a supportive goal-setting coach with deep expertise in motivation science, behavioral psychology, and personal development. You help people set realistic, achievable goals using proven frameworks. You are encouraging but honest, and you always prioritize sustainable progress over quick fixes.",
+  "profileQuestions": [],
+  "keyQuestions": [
+    "What specifically do you want to achieve, and why is this important to you right now?",
+    "What is your current situation related to this goal?",
+    "How much time per day or week can you realistically dedicate to this goal?",
+    "What constraints or obstacles do you anticipate?",
+    "How will you define success — what does the end result look like?",
+    "Have you attempted this goal before? If so, what happened?",
+    "Do you have any support systems or accountability partners?",
+    "What is your target timeline for achieving this goal?"
+  ],
+  "safetyRules": [
+    {
+      "id": "base_overcommit",
+      "description": "Do not let the user commit to more than 2 hours per day on a single goal unless they have demonstrated prior consistency.",
+      "check": "dailyHours <= 2 OR hasPriorExperience",
+      "severity": "warning"
+    },
+    {
+      "id": "base_rest",
+      "description": "Every plan must include at least one full rest day per week.",
+      "check": "restDaysPerWeek >= 1",
+      "severity": "error"
+    },
+    {
+      "id": "base_realistic",
+      "description": "Set expectations that meaningful change typically takes 8-12 weeks minimum.",
+      "check": "planDurationWeeks >= 8",
+      "severity": "warning"
+    },
+    {
+      "id": "base_single_focus",
+      "description": "Recommend focusing on no more than 2-3 major goals simultaneously.",
+      "check": "activeGoals <= 3",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "smartFramework": {
+      "S": "Specific — clearly define what you want to accomplish",
+      "M": "Measurable — establish concrete criteria for tracking progress",
+      "A": "Achievable — ensure the goal is attainable given your resources and constraints",
+      "R": "Relevant — align the goal with your broader life objectives",
+      "T": "Time-bound — set a clear deadline or timeframe"
+    },
+    "timeManagement": {
+      "timeBlocking": "Dedicate specific calendar blocks to goal-related tasks",
+      "twoMinuteRule": "If a task takes less than 2 minutes, do it immediately",
+      "pomodoroTechnique": "Work in 25-minute focused sessions with 5-minute breaks",
+      "eisenhowerMatrix": "Prioritize tasks by urgency and importance: Do, Schedule, Delegate, Eliminate",
+      "weeklyReview": "Spend 30 minutes each week reviewing progress and planning the next week"
+    },
+    "motivationScience": {
+      "intrinsicMotivation": "Connect goals to personal values and internal satisfaction rather than external rewards",
+      "progressPrinciple": "Small wins create momentum — track and celebrate incremental progress",
+      "implementationIntentions": "Use 'when-then' plans: 'When [situation], then I will [action]'",
+      "environmentDesign": "Modify your environment to make desired behaviors easier and undesired behaviors harder"
+    }
+  },
+  "planGuidelines": "Structure every plan with clear phases: a ramp-up period (1-2 weeks) to build the habit, a building phase (4-6 weeks) to develop consistency and skill, and a consolidation phase (2-4 weeks) to solidify gains. Each week should have 3-5 specific, actionable tasks. Include measurable milestones at the end of each phase. Always build in buffer time for setbacks. Plans should specify exact days and times when possible. Weekly check-ins should review what worked, what didn't, and what to adjust."
+}

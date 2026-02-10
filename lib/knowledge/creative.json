@@ -1,0 +1,97 @@
+{
+  "domain": "creative",
+  "displayName": "Creative Projects",
+  "expertPersona": "You are a creative coach who has guided writers, musicians, visual artists, and other creatives through the process of starting, sustaining, and completing creative projects. You understand the unique challenges of creative work — perfectionism, creative blocks, imposter syndrome, and the tension between inspiration and discipline. You believe that creativity is a practice, not a gift, and that consistent effort produces results. You help people build sustainable creative routines and ship their work.",
+  "profileQuestions": [
+    {
+      "field": "creativeMedium",
+      "question": "What is your creative medium (writing, music, visual art, video, etc.)?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "experienceLevel",
+      "question": "How would you describe your experience level?",
+      "type": "select",
+      "options": ["beginner", "hobbyist", "intermediate", "advanced/professional"],
+      "required": true
+    },
+    {
+      "field": "projectGoal",
+      "question": "What specific creative project or goal do you want to achieve?",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "hoursPerWeek",
+      "question": "How many hours per week can you dedicate to creative work?",
+      "type": "number",
+      "required": true
+    }
+  ],
+  "keyQuestions": [
+    "What is your creative medium, and what specific project do you want to complete?",
+    "What is your experience level with this creative form?",
+    "What does 'done' look like for this project — what is the deliverable?",
+    "How many hours per week can you dedicate to creative work?",
+    "What has blocked you from completing creative projects in the past?",
+    "Do you have a dedicated space and time for creative work?",
+    "Are you creating for yourself, for an audience, or for a client/deadline?",
+    "What tools or resources do you need?"
+  ],
+  "safetyRules": [
+    {
+      "id": "creative_perfectionism",
+      "description": "Guard against perfectionism. Emphasize 'done is better than perfect' and encourage shipping imperfect work.",
+      "check": "planIncludesShippingDeadline",
+      "severity": "warning"
+    },
+    {
+      "id": "creative_consistency",
+      "description": "Consistent daily practice (even 15-30 minutes) is more productive than occasional marathon sessions.",
+      "check": "dailyPracticeDuration >= 15",
+      "severity": "warning"
+    },
+    {
+      "id": "creative_rest",
+      "description": "Creative work requires rest and input. Include time for consuming others' work and taking breaks.",
+      "check": "planIncludesRestAndInput",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "creativeProcess": {
+      "stages": [
+        { "name": "Preparation", "description": "Research, gather inspiration, brainstorm ideas, define the project scope." },
+        { "name": "Incubation", "description": "Let ideas simmer. Step away and let your subconscious work. Go for walks, do unrelated activities." },
+        { "name": "Illumination", "description": "The 'aha' moment. Capture ideas immediately when they arrive — keep a notebook or voice recorder handy." },
+        { "name": "Execution", "description": "Do the work. Show up consistently. Separate creating from editing. Get the rough version done first." },
+        { "name": "Revision", "description": "Refine, edit, polish. Get feedback from trusted sources. Iterate based on feedback." }
+      ]
+    },
+    "creativeBlocks": {
+      "commonCauses": [
+        "Perfectionism — fear of producing bad work",
+        "Comparison — measuring yourself against established creators",
+        "Overwhelm — the project feels too big to start",
+        "Lack of constraints — too many options paralyze decision-making",
+        "Burnout — creative exhaustion from overwork without rest"
+      ],
+      "solutions": [
+        "Set a timer for 10 minutes and create without judgment",
+        "Give yourself permission to create terrible first drafts",
+        "Break the project into the smallest possible next step",
+        "Add constraints (word limit, color palette, time limit) to spark creativity",
+        "Change your environment — work in a new location",
+        "Consume inspiring work in your medium to refill the creative well"
+      ]
+    },
+    "dailyCreativeRoutine": {
+      "warmUp": "5 minutes of free-form creation (freewriting, sketching, improvising) without judgment",
+      "focusedWork": "25-50 minutes of focused work on the main project",
+      "review": "5 minutes reviewing what you created and noting next steps",
+      "total": "35-60 minutes minimum per session"
+    }
+  },
+  "planGuidelines": "Structure creative plans around consistent daily practice and clear project milestones. Week 1-2: Define the project scope, gather materials and inspiration, establish a daily creative routine (minimum 15 minutes). Week 3-6: Execute the core creative work with daily sessions. Set weekly output targets (word count, pages, pieces). Separate creation from editing — create first, refine later. Week 7-8: Revise, get feedback, and polish. Set a firm shipping deadline. Include weekly accountability check-ins. Always break large projects into small, manageable chunks with clear deliverables. Schedule both creation time and input time (consuming others' work for inspiration)."
+}

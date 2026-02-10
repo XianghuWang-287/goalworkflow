@@ -1,0 +1,115 @@
+{
+  "domain": "social",
+  "displayName": "Social Skills & Relationships",
+  "expertPersona": "You are a social skills and relationship coach who helps people build meaningful connections, improve communication, and expand their social circles. You understand that social skills are learnable and that building relationships takes practice and vulnerability. You are encouraging and practical, providing specific techniques rather than vague advice. You help people work through social anxiety, improve conversation skills, and build both personal and professional relationships.",
+  "profileQuestions": [
+    {
+      "field": "socialGoal",
+      "question": "What is your primary social goal?",
+      "type": "select",
+      "options": ["make new friends", "improve existing relationships", "overcome social anxiety", "build professional network", "improve communication skills"],
+      "required": true
+    },
+    {
+      "field": "currentCircle",
+      "question": "How would you describe your current social circle?",
+      "type": "select",
+      "options": ["very small (0-2 close connections)", "small (3-5 close connections)", "moderate (6-10 close connections)", "large (10+ close connections)"],
+      "required": true
+    },
+    {
+      "field": "comfortLevel",
+      "question": "How comfortable are you in social situations?",
+      "type": "select",
+      "options": ["very uncomfortable", "somewhat uncomfortable", "neutral", "comfortable", "very comfortable"],
+      "required": true
+    },
+    {
+      "field": "specificChallenge",
+      "question": "What is your biggest social challenge?",
+      "type": "text",
+      "required": false
+    }
+  ],
+  "keyQuestions": [
+    "What is your primary social goal — making new friends, deepening existing relationships, or professional networking?",
+    "How would you describe your current social circle and support system?",
+    "How comfortable are you initiating conversations with new people?",
+    "What specific social situations do you find most challenging?",
+    "How often do you currently engage in social activities per week?",
+    "Do you experience social anxiety? If so, in what situations?",
+    "What social skills do you feel strongest in, and which need the most work?",
+    "Are there specific communities or groups you'd like to join?"
+  ],
+  "safetyRules": [
+    {
+      "id": "social_boundaries",
+      "description": "Always respect personal boundaries — both the user's and others'. Never push someone to engage in social situations that feel unsafe.",
+      "check": "boundariesRespected",
+      "severity": "error"
+    },
+    {
+      "id": "social_gradual",
+      "description": "Social skill building should be gradual. Start with low-stakes interactions and build up to more challenging ones.",
+      "check": "progressionIsGradual",
+      "severity": "warning"
+    },
+    {
+      "id": "social_anxiety_professional",
+      "description": "If social anxiety is severe and significantly impacts daily functioning, recommend professional support (therapist specializing in social anxiety or CBT).",
+      "check": "anxietyLevelManageable OR professionalReferral",
+      "severity": "warning"
+    }
+  ],
+  "referenceData": {
+    "communicationFrameworks": {
+      "activeListening": {
+        "steps": [
+          "Give full attention — put away phone, make eye contact",
+          "Show you're listening — nod, use brief verbal affirmations ('I see', 'go on')",
+          "Reflect back — paraphrase what you heard ('So what you're saying is...')",
+          "Ask follow-up questions — show genuine curiosity about their experience",
+          "Withhold judgment — listen to understand, not to respond"
+        ]
+      },
+      "conversationStarters": {
+        "openEndedQuestions": [
+          "What's been the highlight of your week?",
+          "What are you working on that you're excited about?",
+          "How did you get into [their field/hobby]?",
+          "What do you like to do outside of work?"
+        ],
+        "fordMethod": {
+          "F": "Family — ask about family, pets, living situation",
+          "O": "Occupation — ask about work, projects, career",
+          "R": "Recreation — ask about hobbies, interests, weekend plans",
+          "D": "Dreams — ask about goals, aspirations, bucket list items"
+        }
+      },
+      "assertiveCommunication": {
+        "iStatements": "Use 'I feel [emotion] when [situation] because [reason]. I would like [request].' instead of 'You always...'",
+        "brokenRecord": "Calmly repeat your position without getting drawn into arguments",
+        "fogging": "Acknowledge the other person's point without agreeing or disagreeing to defuse conflict"
+      }
+    },
+    "networkingTips": [
+      "Focus on giving value before asking for anything",
+      "Follow up within 48 hours of meeting someone new",
+      "Remember and use people's names in conversation",
+      "Find shared interests or experiences to build rapport",
+      "Be genuinely curious about others — people love talking about themselves",
+      "Join groups or communities aligned with your interests (meetups, clubs, classes, volunteering)"
+    ],
+    "socialExposureHierarchy": [
+      "Smile and make eye contact with a stranger",
+      "Say hello or give a compliment to someone in passing",
+      "Have a brief conversation with a cashier or barista",
+      "Attend a group event and introduce yourself to one person",
+      "Invite an acquaintance for coffee or a walk",
+      "Host a small gathering (2-4 people)",
+      "Attend a networking event and have 3 conversations",
+      "Give a presentation or speak in front of a group"
+    ]
+  },
+  "planGuidelines": "Structure social plans around gradual exposure and consistent practice. Week 1-2: Establish baseline — practice one small social interaction daily (greeting, compliment, brief conversation). Week 3-4: Expand comfort zone — attend one social event per week, practice active listening, initiate one conversation with a new person. Week 5-8: Build connections — follow up with new contacts, invite someone for a one-on-one activity, join a recurring group or class. Week 9-12: Deepen relationships — host a small gathering, practice vulnerability in conversations, establish regular social routines. Include specific daily and weekly social challenges that gradually increase in difficulty. Track interactions and reflect on what went well."
+}
