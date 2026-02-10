@@ -1,101 +1,79 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { extractGoalSpec } from "@/lib/agents/goalSpecExtractor";
-import { generatePlan } from "@/lib/agents/planGenerator";
+import {
+  createGoalFastPath,
+  finalizePlan,
+} from "@/lib/orchestrator/goalCreationFlow";
+import { Classification } from "@/lib/schemas/classification";
+import { GoalSpec } from "@/lib/schemas/goalSpec";
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, category, answers } = await request.json();
+    const body = await request.json();
+    const { title, category, path, goalSpec, classification, conversationId } =
+      body;
 
-    if (!title) {
+    if (!title && !goalSpec) {
       return NextResponse.json(
-        { error: "Title is required" },
-        { status: 400 }
+        { error: "Title or goalSpec is required" },
+        { status: 400 },
       );
     }
 
-    // Step 1: Extract GoalSpec using AI, merge with answers
-    console.log("[Goal Creation] Step 1: Extracting GoalSpec...");
-    const goalSpecInput = {
-      title,
-      category,
-      ...answers, // Merge answers from questions into GoalSpec
-    };
-    const goalSpec = await extractGoalSpec(goalSpecInput);
-    console.log("[Goal Creation] GoalSpec extracted:", goalSpec);
-
-    // Step 2: Create Goal in database
-    const goal = await prisma.goal.create({
-      data: {
-        userId: session.user.id,
-        title: goalSpec.title,
-        category: goalSpec.category || category || "other",
-        goalSpecJson: goalSpec as any,
-        status: "active",
-      },
-    });
-
-    // Step 3: Generate Plan using AI
-    const startDate = new Date().toISOString().split("T")[0];
-    console.log("[Goal Creation] Step 3: Generating plan with startDate:", startDate);
-    const plan = await generatePlan(goalSpec, startDate);
-    console.log("[Goal Creation] Plan generated with", plan.weeks[0].days.length, "days");
-
-    // Step 4: Create Plan and Tasks in database
-    const planRecord = await prisma.plan.create({
-      data: {
-        goalId: goal.id,
-        startDate: new Date(startDate),
-        planJson: plan as any,
-        version: plan.version,
-        status: "active",
-        promptVersion: "v1.0.0",
-      },
-    });
-
-    // Create tasks for each day
-    const week = plan.weeks[0];
-    for (const day of week.days) {
-      for (const task of day.tasks) {
-        await prisma.task.create({
-          data: {
-            goalId: goal.id,
-            planId: planRecord.id,
-            date: new Date(day.date),
-            dayIndex: day.day_index,
-            taskJson: task as any,
-            status: "pending",
-          },
-        });
-      }
+    // Fast path: simple goal, just title
+    if (path === "fast" || (!goalSpec && !classification)) {
+      const result = await createGoalFastPath(
+        session.user.id,
+        title,
+        category,
+      );
+      return NextResponse.json(
+        {
+          goalId: result.goalId,
+          plan: result.plan,
+          classification: result.classification,
+          goalSpec: result.goalSpec,
+          violations: result.violations,
+          message: "Goal and plan created successfully",
+        },
+        { status: 201 },
+      );
     }
 
-    // Step 5: Log event
-    await prisma.eventLog.create({
-      data: {
-        goalId: goal.id,
-        type: "goal_created",
-        payloadJson: { goalSpec, planGenerated: true } as any,
-      },
-    });
+    // Deep path: has goalSpec from expert conversation
+    if (goalSpec && classification) {
+      const result = await finalizePlan(
+        session.user.id,
+        goalSpec as GoalSpec,
+        classification as Classification,
+        conversationId,
+      );
+      return NextResponse.json(
+        {
+          goalId: result.goalId,
+          plan: result.plan,
+          violations: result.violations,
+          message: "Goal and plan created successfully",
+        },
+        { status: 201 },
+      );
+    }
 
-    return NextResponse.json(
-      { goalId: goal.id, message: "Goal and plan created successfully" },
-      { status: 201 }
-    );
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   } catch (error) {
     console.error("Goal creation error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }
