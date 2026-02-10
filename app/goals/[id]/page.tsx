@@ -2,9 +2,39 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plan, Day, Task } from "@/lib/schemas/plan";
+import { Plan, Day, Task, Phase } from "@/lib/schemas/plan";
+import { DeleteGoalButton } from "@/components/DeleteGoalButton";
+import { TaskCard } from "@/components/task-card";
+import Link from "next/link";
+
+/* ---------- helpers ---------- */
+
+function timeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
+
+const COMPLEXITY_COLORS: Record<string, string> = {
+  simple: "bg-emerald-100 text-emerald-800",
+  moderate: "bg-amber-100 text-amber-800",
+  complex: "bg-red-100 text-red-800",
+};
+
+/* ---------- page ---------- */
 
 export default async function GoalDetailPage({
   params,
@@ -18,15 +48,18 @@ export default async function GoalDetailPage({
   }
 
   const goal = await prisma.goal.findFirst({
-    where: {
-      id: params.id,
-      userId: session.user.id,
-    },
+    where: { id: params.id, userId: session.user.id },
     include: {
       plans: {
         where: { status: "active" },
         orderBy: { version: "desc" },
         take: 1,
+        include: {
+          versions: {
+            orderBy: { version: "desc" },
+            take: 5,
+          },
+        },
       },
       tasks: {
         orderBy: { date: "asc" },
@@ -43,7 +76,9 @@ export default async function GoalDetailPage({
   });
 
   if (!goal) {
-    return <div className="container mx-auto px-4 py-8">Goal not found</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">Goal not found</div>
+    );
   }
 
   const activePlan = goal.plans[0];
@@ -51,14 +86,18 @@ export default async function GoalDetailPage({
     ? (activePlan.planJson as any as Plan)
     : null;
 
+  const phases: Phase[] = planData?.phases ?? [];
+  const currentPhaseIdx = activePlan?.currentPhase ?? 0;
+  const currentWeekIdx = activePlan?.currentWeek ?? 0;
+
   const today = new Date().toISOString().split("T")[0];
   const todayTasks = goal.tasks.filter(
-    (task) => task.date.toISOString().split("T")[0] === today
+    (task) => task.date.toISOString().split("T")[0] === today,
   );
 
   // Calculate streak
   const checkins = goal.checkins.sort(
-    (a, b) => b.date.getTime() - a.date.getTime()
+    (a, b) => b.date.getTime() - a.date.getTime(),
   );
   let streak = 0;
   let checkDate = new Date();
@@ -79,192 +118,129 @@ export default async function GoalDetailPage({
     }
   }
 
+  // Phase progress helpers
+  const totalWeeks = phases.reduce((s, p) => s + p.durationWeeks, 0);
+  const weeksBeforeCurrentPhase = phases
+    .slice(0, currentPhaseIdx)
+    .reduce((s, p) => s + p.durationWeeks, 0);
+  const currentPhase = phases[currentPhaseIdx] as Phase | undefined;
+
+  // Plan versions
+  const planVersions = activePlan?.versions ?? [];
+
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* ===== Header ===== */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{goal.title}</h1>
-        <div className="flex gap-4 items-center">
+        <div className="flex items-start justify-between mb-2">
+          <h1 className="text-3xl font-bold">{goal.title}</h1>
+          <div className="flex gap-2">
+            <Link href="/dashboard">
+              <Button variant="outline">Back to Dashboard</Button>
+            </Link>
+            <DeleteGoalButton goalId={goal.id} goalTitle={goal.title} />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm capitalize">
             {goal.category || "other"}
           </span>
           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm capitalize">
             {goal.status}
           </span>
+          {goal.domain && (
+            <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+              {goal.domain}
+            </span>
+          )}
+          {goal.complexity && (
+            <span
+              className={`px-3 py-1 rounded-full text-sm capitalize ${
+                COMPLEXITY_COLORS[goal.complexity] ??
+                "bg-gray-100 text-gray-800"
+              }`}
+            >
+              {goal.complexity}
+            </span>
+          )}
           {streak > 0 && (
             <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-              🔥 {streak} day streak
+              {streak} day streak
             </span>
           )}
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        {/* Today's Tasks */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Tasks</CardTitle>
-            <CardDescription>
-              {todayTasks.length > 0
-                ? `${todayTasks.length} tasks for today`
-                : "No tasks scheduled for today"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todayTasks.length > 0 ? (
-              <div className="space-y-3">
-                {todayTasks.map((task, idx) => {
-                  const taskData = task.taskJson as any as Task;
-                  return (
-                    <div
-                      key={task.id}
-                      className="p-3 border rounded-lg bg-gray-50"
-                    >
-                      <h4 className="font-medium mb-1">{taskData.title}</h4>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {taskData.type} • {taskData.duration_min} min
-                      </p>
-                      <div className="text-xs text-gray-500">
-                        Status: {task.status}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500">No tasks for today</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 7-Day Calendar */}
-        <Card>
-          <CardHeader>
-            <CardTitle>7-Day Plan</CardTitle>
-            <CardDescription>Your weekly schedule</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {planData ? (
-              <div className="space-y-3">
-                {planData.weeks[0].days.map((day, idx) => {
-                  const dayCheckin = goal.checkins.find(
-                    (c) =>
-                      c.date.toISOString().split("T")[0] === day.date
-                  );
-                  const dayTasks = goal.tasks.filter(
-                    (t) => t.date.toISOString().split("T")[0] === day.date
-                  );
-                  return (
-                    <div
-                      key={idx}
-                      className="p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <span className="font-medium">Day {day.day_index + 1}</span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            {new Date(day.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                            {day.tasks.length} tasks
-                          </span>
-                          {dayCheckin && (
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                dayCheckin.status === "done"
-                                  ? "bg-green-100 text-green-800"
-                                  : dayCheckin.status === "partial"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {dayCheckin.status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        {day.tasks.slice(0, 2).map((task, taskIdx) => (
-                          <div key={taskIdx} className="text-sm text-gray-700">
-                            <span className="font-medium">{task.title}</span>
-                            <span className="text-gray-500 ml-2">
-                              ({task.type} • {task.duration_min}min)
-                            </span>
-                          </div>
-                        ))}
-                        {day.tasks.length > 2 && (
-                          <div className="text-xs text-gray-500">
-                            +{day.tasks.length - 2} more tasks
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500">No plan available</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Weekly Overview */}
-      {planData && planData.weeks.length > 0 && (
+      {/* ===== Phase Progress ===== */}
+      {phases.length > 0 && currentPhase && (
         <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Week 1 Overview</CardTitle>
-            <CardDescription>Summary of this week's learning plan</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {planData.weeks[0].days.map((day, idx) => {
-                const totalDuration = day.tasks.reduce(
-                  (sum, task) => sum + task.duration_min,
-                  0
-                );
-                const taskTypes = day.tasks.map((t) => t.type);
-                const uniqueTypes = [...new Set(taskTypes)];
-                
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span className="text-sm text-muted-foreground">
+                  Phase {currentPhaseIdx + 1} of {phases.length}
+                </span>
+                <h3 className="font-semibold text-lg">{currentPhase.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {currentPhase.focus}
+                </p>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                Week {currentWeekIdx + 1}
+                {totalWeeks > 0 && <> of {totalWeeks}</>}
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-muted">
+              {phases.map((phase, idx) => {
+                const widthPct = totalWeeks > 0
+                  ? (phase.durationWeeks / totalWeeks) * 100
+                  : 100 / phases.length;
+                const isCurrent = idx === currentPhaseIdx;
+                const isCompleted = idx < currentPhaseIdx;
+                let fillPct = 0;
+                if (isCompleted) fillPct = 100;
+                else if (isCurrent && phase.durationWeeks > 0) {
+                  const weekInPhase = currentWeekIdx - weeksBeforeCurrentPhase;
+                  fillPct = Math.min(
+                    ((weekInPhase + 1) / phase.durationWeeks) * 100,
+                    100,
+                  );
+                }
                 return (
-                  <div key={idx} className="p-3 border-l-4 border-blue-500 bg-blue-50 rounded">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <span className="font-semibold">Day {day.day_index + 1}</span>
-                        <span className="text-sm text-gray-600 ml-2">
-                          {new Date(day.date).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        {totalDuration} min total
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {day.tasks.map((task, taskIdx) => (
-                        <div key={taskIdx} className="text-sm">
-                          <span className="font-medium">{task.title}</span>
-                          <span className="text-gray-600 ml-2">
-                            ({task.type} • {task.duration_min}min)
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {day.assessment && (
-                      <div className="mt-2 pt-2 border-t border-blue-200">
-                        <div className="text-sm">
-                          <span className="font-medium text-blue-700">Assessment: </span>
-                          <span>{day.assessment.title}</span>
-                          <span className="text-gray-600 ml-2">
-                            ({day.assessment.type})
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                  <div
+                    key={idx}
+                    className="relative h-full"
+                    style={{ width: `${widthPct}%` }}
+                    title={`${phase.name} (${phase.durationWeeks}w)`}
+                  >
+                    <div
+                      className={`h-full transition-all ${
+                        isCompleted
+                          ? "bg-green-500"
+                          : isCurrent
+                          ? "bg-blue-500"
+                          : "bg-transparent"
+                      }`}
+                      style={{ width: `${fillPct}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            {/* Phase labels */}
+            <div className="flex gap-1 mt-1">
+              {phases.map((phase, idx) => {
+                const widthPct = totalWeeks > 0
+                  ? (phase.durationWeeks / totalWeeks) * 100
+                  : 100 / phases.length;
+                return (
+                  <div
+                    key={idx}
+                    className="text-[10px] text-muted-foreground truncate"
+                    style={{ width: `${widthPct}%` }}
+                  >
+                    {phase.name}
                   </div>
                 );
               })}
@@ -273,68 +249,225 @@ export default async function GoalDetailPage({
         </Card>
       )}
 
-      {/* Goal Timeline Overview */}
-      {planData && (
+      {/* ===== Today's Tasks ===== */}
+      <Card className="mb-8">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Today&apos;s Tasks</CardTitle>
+            <Link href={`/checkin?goalId=${goal.id}`}>
+              <Button size="sm">Check In</Button>
+            </Link>
+          </div>
+          <CardDescription>{today}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {todayTasks.length > 0 ? (
+            <div className="space-y-3">
+              {todayTasks.map((task) => {
+                const meta = task.taskJson as any;
+                const timeSlot = task.timeSlot || meta?.timeSlot;
+                const specificVals =
+                  (task.specificValues as Record<string, any>) ??
+                  meta?.specificValues;
+                const title = meta?.title ?? "Untitled task";
+                return (
+                  <div key={task.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        {timeSlot && (
+                          <span className="rounded bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
+                            {timeSlot}
+                          </span>
+                        )}
+                        <span className="font-medium">{title}</span>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          task.status === "done"
+                            ? "bg-green-100 text-green-800"
+                            : task.status === "skipped"
+                            ? "bg-gray-100 text-gray-600"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {task.status}
+                      </span>
+                    </div>
+                    {/* Specific values */}
+                    {specificVals &&
+                      typeof specificVals === "object" &&
+                      Object.keys(specificVals).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {Object.entries(specificVals)
+                            .filter(
+                              ([, v]) =>
+                                v !== null && v !== undefined && v !== "",
+                            )
+                            .map(([key, value]) => (
+                              <span
+                                key={key}
+                                className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                              >
+                                {typeof value === "object"
+                                  ? JSON.stringify(value)
+                                  : String(value)}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                    {meta?.duration_min && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {meta.duration_min} min
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-gray-500">No tasks scheduled for today</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ===== Plan Modification Button ===== */}
+      <div className="flex gap-3 mb-8">
+        <Link href={`/goals/${goal.id}/modify`}>
+          <Button variant="outline" className="gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            跟 AI 调整
+          </Button>
+        </Link>
+      </div>
+
+      {/* ===== Plan Overview (Multi-week) ===== */}
+      {planData && planData.weeks && planData.weeks.length > 0 && (
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Learning Path</CardTitle>
+            <CardTitle>Plan Overview</CardTitle>
             <CardDescription>
-              {(() => {
-                const goalSpec = goal.goalSpecJson as any;
-                const timeframe = goalSpec?.timeframe || "7 days";
-                return `Your ${timeframe} learning journey`;
-              })()}
+              {planData.weeks.length} week
+              {planData.weeks.length > 1 ? "s" : ""} starting{" "}
+              {planData.start_date}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                <h3 className="font-semibold mb-2">Week 1 Focus</h3>
-                <p className="text-sm text-gray-700">
-                  {planData.weeks[0].days.length > 0 && (
-                    <>
-                      This week covers:{" "}
-                      {planData.weeks[0].days
-                        .flatMap((d) => d.tasks)
-                        .slice(0, 4)
-                        .map((t) => t.title)
-                        .join(", ")}
-                      {planData.weeks[0].days[0].tasks.length > 2 && "..."}
-                    </>
-                  )}
-                </p>
-                <div className="mt-2 text-xs text-gray-600">
-                  Total tasks: {planData.weeks[0].days.reduce((sum, d) => sum + d.tasks.length, 0)} • 
-                  Estimated time:{" "}
-                  {planData.weeks[0].days.reduce(
-                    (sum, d) =>
-                      sum + d.tasks.reduce((s, t) => s + t.duration_min, 0),
-                    0
-                  )}{" "}
-                  minutes
+            <div className="space-y-6">
+              {planData.weeks.map((week) => (
+                <div key={week.week_index}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="font-semibold text-base">
+                      Week {week.week_index + 1}
+                    </h3>
+                    {currentWeekIdx === week.week_index && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                        Current
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {week.days.map((day: Day) => (
+                      <div
+                        key={day.day_index}
+                        className="border rounded-lg p-3"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">
+                            Day {day.day_index + 1}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {day.date}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {day.tasks.map((task: Task, tIdx: number) => (
+                            <TaskCard
+                              key={tIdx}
+                              task={task}
+                              compact
+                            />
+                          ))}
+                        </div>
+                        {day.assessment && (
+                          <div className="mt-2 border-t pt-2">
+                            <span className="text-xs font-medium text-orange-700">
+                              Assessment: {day.assessment.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {(() => {
-                const goalSpec = goal.goalSpecJson as any;
-                const timeframe = goalSpec?.timeframe || "";
-                if (timeframe.includes("month") || timeframe.includes("week")) {
-                  return (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Note:</strong> This is Week 1 of your {timeframe} plan. 
-                        Additional weeks will be generated after you complete your first weekly review.
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Recent Check-ins */}
+      {/* ===== Plan Version History ===== */}
+      {planVersions.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Plan Version History</CardTitle>
+            <CardDescription>
+              Recent changes to your plan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {planVersions.map((pv) => {
+                const sourceLabel: Record<string, string> = {
+                  generation: "Generated",
+                  chat: "AI Chat",
+                  direct_edit: "Direct Edit",
+                  weekly_review: "Weekly Review",
+                };
+                return (
+                  <div
+                    key={pv.id}
+                    className="flex items-start gap-3 p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted text-xs font-semibold shrink-0">
+                      v{pv.version}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                          {sourceLabel[pv.changeSource] ?? pv.changeSource}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {timeAgo(new Date(pv.createdAt))}
+                        </span>
+                      </div>
+                      {pv.changeSummary && (
+                        <p className="text-sm text-muted-foreground truncate">
+                          {pv.changeSummary}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== Recent Check-ins ===== */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Recent Check-ins</CardTitle>
@@ -352,7 +485,9 @@ export default async function GoalDetailPage({
                       {new Date(checkin.date).toLocaleDateString()}
                     </span>
                     {checkin.note && (
-                      <p className="text-sm text-gray-600 mt-1">{checkin.note}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {checkin.note}
+                      </p>
                     )}
                   </div>
                   <span
@@ -375,7 +510,7 @@ export default async function GoalDetailPage({
         </CardContent>
       </Card>
 
-      {/* Timeline */}
+      {/* ===== Timeline ===== */}
       <Card>
         <CardHeader>
           <CardTitle>Timeline</CardTitle>
@@ -388,7 +523,7 @@ export default async function GoalDetailPage({
                   key={event.id}
                   className="flex items-start gap-3 p-3 border-l-2 border-blue-200"
                 >
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 -ml-1.5"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 -ml-1.5" />
                   <div className="flex-1">
                     <div className="font-medium capitalize">
                       {event.type.replace(/_/g, " ")}
