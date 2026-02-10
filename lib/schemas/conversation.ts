@@ -11,8 +11,8 @@ export const ExpertTurnResultSchema = z.object({
   message: z.string(),
   options: z.array(z.string()).optional(),
   done: z.boolean(),
-  goalSpec: z.any().optional(),
-  profileUpdates: z.record(z.any()).optional(),
+  goalSpec: z.any().nullable().optional(),
+  profileUpdates: z.record(z.any()).nullable().optional(),
 });
 
 export type ConversationMessage = z.infer<typeof ConversationMessageSchema>;
