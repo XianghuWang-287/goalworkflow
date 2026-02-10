@@ -5,7 +5,6 @@
 
 import { JSONGuard } from "../llm/jsonGuard";
 import { z } from "zod";
-import { XAIClient } from "../llm/xaiClient";
 
 const QuestionSchema = z.object({
   question: z.string(),
@@ -51,9 +50,9 @@ export async function analyzeGoal(
   title: string,
   category?: string
 ): Promise<GoalAnalysis> {
-  const client = new XAIClient();
   const guard = new JSONGuard({
     maxRetries: 2,
+    schemaName: "GoalAnalysis",
     fallbackTemplate: () => ({
       goalType: "complex" as const,
       needsMoreInfo: false,

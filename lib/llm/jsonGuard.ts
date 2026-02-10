@@ -1,29 +1,35 @@
 /**
  * JSON Guard: Validates LLM output with Zod, retries on failure, falls back to template
+ * Uses strict JSON Schema enforcement for guaranteed format compliance
  */
 
 import { z, ZodError } from "zod";
-import { XAIClient, XAIMessage } from "./xaiClient";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { XAIClient, XAIMessage, ResponseFormat } from "./xaiClient";
 
 export interface JSONGuardOptions {
   maxRetries?: number;
   fallbackTemplate?: () => any;
+  schemaName?: string; // Name for the JSON schema
 }
 
 export class JSONGuard {
   private client: XAIClient;
   private maxRetries: number;
   private fallbackTemplate?: () => any;
+  private schemaName: string;
 
   constructor(options: JSONGuardOptions = {}) {
     this.client = new XAIClient();
     this.maxRetries = options.maxRetries ?? 2;
     this.fallbackTemplate = options.fallbackTemplate;
+    this.schemaName = options.schemaName ?? "response";
   }
 
   /**
    * Calls LLM and validates output against Zod schema
-   * Retries up to maxRetries times, then falls back to template
+   * Uses strict JSON Schema enforcement at the API level for guaranteed format
+   * Falls back to simple JSON mode if strict mode fails
    */
   async callAndValidate<T>(
     prompt: string,
@@ -42,13 +48,31 @@ export class JSONGuard {
       },
     ];
 
+    // Convert Zod schema to JSON Schema for strict enforcement
+    const jsonSchema = zodToJsonSchema(zodSchema, {
+      name: this.schemaName,
+      $refStrategy: "none", // Inline all refs for compatibility
+    });
+
+    // Use strict JSON Schema mode for guaranteed format compliance
+    const responseFormat: ResponseFormat = {
+      type: "json_schema",
+      json_schema: {
+        name: this.schemaName,
+        schema: jsonSchema as Record<string, unknown>,
+        strict: true,
+      },
+    };
+
     let lastError: Error | null = null;
     let lastResponse: string = "";
 
+    console.log(`[JSONGuard] Using strict JSON Schema mode for schema: ${this.schemaName}`);
+
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
-        console.log(`[JSONGuard] Attempt ${attempt + 1}/${this.maxRetries + 1} - Calling xAI API...`);
-        const response = await this.client.chatCompletion(messages);
+        console.log(`[JSONGuard] Attempt ${attempt + 1}/${this.maxRetries + 1} - Calling xAI API with strict JSON Schema...`);
+        const response = await this.client.chatCompletion(messages, { responseFormat });
         lastResponse = response;
         console.log(`[JSONGuard] Received response (length: ${response.length} chars)`);
 

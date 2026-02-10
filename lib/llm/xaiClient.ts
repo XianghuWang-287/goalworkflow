@@ -25,6 +25,17 @@ export interface XAIChatCompletionResponse {
   };
 }
 
+// Response format types
+export type ResponseFormat =
+  | { type: "json_object" }
+  | { type: "json_schema"; json_schema: JsonSchemaFormat };
+
+export interface JsonSchemaFormat {
+  name: string;
+  schema: Record<string, unknown>;
+  strict?: boolean;
+}
+
 export class XAIClient {
   private apiKey: string;
   private baseUrl: string;
@@ -47,16 +58,18 @@ export class XAIClient {
     options?: {
       temperature?: number;
       maxTokens?: number;
+      responseFormat?: ResponseFormat;
     }
   ): Promise<string> {
     const url = `${this.baseUrl}/chat/completions`;
 
-    const body = {
+    const body: Record<string, unknown> = {
       model: this.model,
       messages,
       stream: false,
       temperature: options?.temperature ?? 0,
       ...(options?.maxTokens && { max_tokens: options.maxTokens }),
+      ...(options?.responseFormat && { response_format: options.responseFormat }),
     };
 
     try {
