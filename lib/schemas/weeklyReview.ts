@@ -1,7 +1,15 @@
 import { z } from "zod";
 
+export const PhaseInfoSchema = z.object({
+  phase_name: z.string(),
+  phase_progress: z.string(), // e.g., "Week 3 of 4"
+  transition_recommended: z.boolean(),
+  transition_reason: z.string(),
+});
+
 export const WeeklyReviewSchema = z.object({
   week_index: z.number().int().min(0),
+  phase_info: PhaseInfoSchema.optional(), // Phase-aware review data
   metrics: z.object({
     completion_rate: z.number().min(0).max(1), // 0-1
     total_checkins: z.number().int().min(0),
