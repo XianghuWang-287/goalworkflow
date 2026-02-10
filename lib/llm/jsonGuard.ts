@@ -136,4 +136,65 @@ Return the complete, corrected JSON object now.`,
 
     throw lastError || new Error("Unexpected error in JSONGuard");
   }
+
+  /**
+   * Streaming variant: calls LLM with streaming, forwards tokens via onToken callback,
+   * then validates the full response with Zod. Falls back to non-streaming retry on failure.
+   */
+  async callAndValidateStream<T>(
+    prompt: string,
+    systemPrompt: string,
+    zodSchema: z.ZodSchema<T>,
+    onToken: (token: string) => void,
+    input?: any
+  ): Promise<T> {
+    const messages: XAIMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt },
+    ];
+
+    const jsonSchema = zodToJsonSchema(zodSchema, {
+      name: this.schemaName,
+      $refStrategy: "none",
+    });
+
+    const responseFormat: ResponseFormat = {
+      type: "json_schema",
+      json_schema: {
+        name: this.schemaName,
+        schema: jsonSchema as Record<string, unknown>,
+        strict: true,
+      },
+    };
+
+    try {
+      console.log(`[JSONGuard] Streaming call with schema: ${this.schemaName}`);
+      const gen = this.client.chatCompletionStream(messages, { responseFormat });
+
+      let fullText = "";
+      let result = await gen.next();
+      while (!result.done) {
+        fullText += result.value;
+        onToken(result.value);
+        result = await gen.next();
+      }
+      // generator return value is the full text
+      if (result.value) fullText = result.value;
+
+      let jsonString = fullText.trim();
+      if (jsonString.startsWith("```json")) {
+        jsonString = jsonString.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+      } else if (jsonString.startsWith("```")) {
+        jsonString = jsonString.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+
+      const parsed = JSON.parse(jsonString);
+      const validated = zodSchema.parse(parsed);
+      console.log(`[JSONGuard] Stream validated successfully`);
+      return validated;
+    } catch (error) {
+      console.warn(`[JSONGuard] Stream validation failed, falling back to non-streaming:`, error);
+      return this.callAndValidate<T>(prompt, systemPrompt, zodSchema, input);
+    }
+  }
 }

@@ -53,6 +53,7 @@ export async function createGoalFastPath(
   userId: string,
   title: string,
   category?: string,
+  onToken?: (token: string) => void,
 ): Promise<{
   goalId: string;
   plan: Plan;
@@ -74,6 +75,7 @@ export async function createGoalFastPath(
     title,
     userProfile,
     occupiedSlots,
+    onToken,
   });
 
   // Override category if provided
@@ -222,13 +224,14 @@ export async function startDeepPath(
 export async function continueDeepPath(
   conversationId: string,
   userMessage: string,
+  onToken?: (token: string) => void,
 ): Promise<ExpertTurnResult> {
   console.log(
     `[Orchestrator] continueDeepPath: conversationId=${conversationId}`,
   );
 
   // 1. Continue the expert conversation
-  const result = await continueExpertConversation(conversationId, userMessage);
+  const result = await continueExpertConversation(conversationId, userMessage, onToken);
 
   // 2. If profileUpdates returned, persist them
   if (result.profileUpdates && Object.keys(result.profileUpdates).length > 0) {
@@ -282,6 +285,7 @@ export async function finalizePlan(
   goalSpec: GoalSpec,
   classification: Classification,
   conversationId?: string,
+  onToken?: (token: string) => void,
 ): Promise<{
   goalId: string;
   plan: Plan;
@@ -308,6 +312,7 @@ export async function finalizePlan(
     userProfile,
     domainProfile,
     occupiedSlots,
+    onToken,
   });
 
   console.log(

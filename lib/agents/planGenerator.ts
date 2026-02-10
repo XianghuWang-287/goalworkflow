@@ -362,6 +362,7 @@ export async function generatePlan(input: {
   userProfile: UserProfileData;
   domainProfile?: DomainProfile | null;
   occupiedSlots: OccupiedSlot[];
+  onToken?: (token: string) => void;
 }): Promise<{ plan: Plan; violations: ConstraintViolation[] }> {
   const { goalSpec, classification, userProfile, occupiedSlots } = input;
 
@@ -455,11 +456,21 @@ export async function generatePlan(input: {
     );
 
     try {
-      plan = await guard.callAndValidate<Plan>(
-        currentPrompt,
-        systemPrompt,
-        PlanSchema as z.ZodType<Plan>,
-      );
+      // Use streaming on first attempt if onToken provided
+      if (attempt === 0 && input.onToken) {
+        plan = await guard.callAndValidateStream<Plan>(
+          currentPrompt,
+          systemPrompt,
+          PlanSchema as z.ZodType<Plan>,
+          input.onToken,
+        );
+      } else {
+        plan = await guard.callAndValidate<Plan>(
+          currentPrompt,
+          systemPrompt,
+          PlanSchema as z.ZodType<Plan>,
+        );
+      }
     } catch (error) {
       console.error(`[PlanGenerator] LLM generation failed on attempt ${attempt + 1}:`, error);
       // Use fallback on final attempt
@@ -535,6 +546,7 @@ export async function generateSimplePlan(input: {
   title: string;
   userProfile: UserProfileData;
   occupiedSlots: OccupiedSlot[];
+  onToken?: (token: string) => void;
 }): Promise<{
   plan: Plan;
   classification: Classification;
@@ -569,6 +581,7 @@ export async function generateSimplePlan(input: {
     classification,
     userProfile: input.userProfile,
     occupiedSlots: input.occupiedSlots,
+    onToken: input.onToken,
   });
 
   return { plan, classification, goalSpec };

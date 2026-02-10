@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, category, path, goalSpec, classification, conversationId } =
+    const { title, category, path, goalSpec, classification, conversationId, stream } =
       body;
 
     if (!title && !goalSpec) {
@@ -26,46 +26,105 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fast path: simple goal, just title
-    if (path === "fast" || (!goalSpec && !classification)) {
-      const result = await createGoalFastPath(
-        session.user.id,
-        title,
-        category,
-      );
-      return NextResponse.json(
-        {
-          goalId: result.goalId,
-          plan: result.plan,
-          classification: result.classification,
-          goalSpec: result.goalSpec,
-          violations: result.violations,
-          message: "Goal and plan created successfully",
-        },
-        { status: 201 },
-      );
+    // Non-streaming fallback
+    if (!stream) {
+      if (path === "fast" || (!goalSpec && !classification)) {
+        const result = await createGoalFastPath(session.user.id, title, category);
+        return NextResponse.json(
+          {
+            goalId: result.goalId,
+            plan: result.plan,
+            classification: result.classification,
+            goalSpec: result.goalSpec,
+            violations: result.violations,
+            message: "Goal and plan created successfully",
+          },
+          { status: 201 },
+        );
+      }
+
+      if (goalSpec && classification) {
+        const result = await finalizePlan(
+          session.user.id,
+          goalSpec as GoalSpec,
+          classification as Classification,
+          conversationId,
+        );
+        return NextResponse.json(
+          {
+            goalId: result.goalId,
+            plan: result.plan,
+            violations: result.violations,
+            message: "Goal and plan created successfully",
+          },
+          { status: 201 },
+        );
+      }
+
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    // Deep path: has goalSpec from expert conversation
-    if (goalSpec && classification) {
-      const result = await finalizePlan(
-        session.user.id,
-        goalSpec as GoalSpec,
-        classification as Classification,
-        conversationId,
-      );
-      return NextResponse.json(
-        {
-          goalId: result.goalId,
-          plan: result.plan,
-          violations: result.violations,
-          message: "Goal and plan created successfully",
-        },
-        { status: 201 },
-      );
-    }
+    // SSE streaming response
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        const send = (data: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
 
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+        try {
+          send({ type: "status", message: "Generating plan..." });
+
+          if (path === "fast" || (!goalSpec && !classification)) {
+            const result = await createGoalFastPath(
+              session.user.id,
+              title,
+              category,
+              (token) => send({ type: "token", content: token }),
+            );
+            send({
+              type: "result",
+              goalId: result.goalId,
+              plan: result.plan,
+              classification: result.classification,
+              goalSpec: result.goalSpec,
+              violations: result.violations,
+            });
+          } else if (goalSpec && classification) {
+            const result = await finalizePlan(
+              session.user.id,
+              goalSpec as GoalSpec,
+              classification as Classification,
+              conversationId,
+              (token) => send({ type: "token", content: token }),
+            );
+            send({
+              type: "result",
+              goalId: result.goalId,
+              plan: result.plan,
+              violations: result.violations,
+            });
+          } else {
+            send({ type: "error", message: "Invalid request" });
+          }
+        } catch (error) {
+          send({
+            type: "error",
+            message: error instanceof Error ? error.message : "Internal server error",
+          });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error) {
     console.error("Goal creation error:", error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -19,6 +19,25 @@ interface ChatConversationProps {
   onComplete: (goalSpec: any, classification: any) => void;
 }
 
+/** Parse SSE lines from a text chunk, returning parsed events and remaining buffer */
+function parseSSEChunk(buffer: string): { events: Record<string, unknown>[]; remaining: string } {
+  const events: Record<string, unknown>[] = [];
+  const lines = buffer.split("\n");
+  const remaining = lines.pop() || "";
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.startsWith("data: ")) continue;
+    try {
+      events.push(JSON.parse(trimmed.slice(6)));
+    } catch {
+      // skip malformed
+    }
+  }
+
+  return { events, remaining };
+}
+
 export function ChatConversation({
   conversationId,
   initialMessage,
@@ -33,13 +52,14 @@ export function ChatConversation({
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [turnCount, setTurnCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   useEffect(() => {
     if (!loading) {
@@ -47,57 +67,97 @@ export function ChatConversation({
     }
   }, [loading]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
+    setStreamingContent("");
     setTurnCount((c) => c + 1);
 
     try {
       const res = await fetch("/api/goals/conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, message: text.trim() }),
+        body: JSON.stringify({ conversationId, message: text.trim(), stream: true }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json();
         setMessages((prev) => [
           ...prev,
-          {
-            role: "assistant",
-            content: data.error || "Something went wrong. Please try again.",
-          },
+          { role: "assistant", content: data.error || "Something went wrong. Please try again." },
         ]);
         return;
       }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.message,
-        options: data.options,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Streaming not supported." }]);
+        return;
+      }
 
-      if (data.done) {
-        onComplete(data.goalSpec, data.classification);
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const { events, remaining } = parseSSEChunk(buffer);
+        buffer = remaining;
+
+        for (const event of events) {
+          if (event.type === "token") {
+            accumulated += event.content as string;
+            setStreamingContent(accumulated);
+          } else if (event.type === "done") {
+            // Conversation continues — finalize message with parsed content
+            setStreamingContent("");
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: event.message as string,
+                options: event.options as string[] | undefined,
+              },
+            ]);
+          } else if (event.type === "complete") {
+            // Expert conversation done — goalSpec ready
+            setStreamingContent("");
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: event.message as string,
+                options: event.options as string[] | undefined,
+              },
+            ]);
+            onComplete(event.goalSpec, event.classification);
+          } else if (event.type === "error") {
+            setStreamingContent("");
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: (event.message as string) || "Something went wrong." },
+            ]);
+          }
+        }
       }
     } catch {
+      setStreamingContent("");
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "Network error. Please check your connection and try again.",
-        },
+        { role: "assistant", content: "Network error. Please check your connection and try again." },
       ]);
     } finally {
       setLoading(false);
+      setStreamingContent("");
     }
-  };
+  }, [conversationId, loading, onComplete]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -159,8 +219,20 @@ export function ChatConversation({
           </div>
         ))}
 
-        {/* Loading indicator */}
-        {loading && (
+        {/* Streaming message */}
+        {loading && streamingContent && (
+          <div>
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 text-sm whitespace-pre-wrap bg-muted text-foreground">
+                {streamingContent}
+                <span className="inline-block w-1.5 h-4 bg-foreground/50 animate-pulse ml-0.5 align-text-bottom" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading indicator (before streaming starts) */}
+        {loading && !streamingContent && (
           <div className="flex justify-start">
             <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted-foreground">
               <span className="inline-flex gap-1">

@@ -296,10 +296,12 @@ Please introduce yourself briefly and ask your first question to start gathering
 /**
  * Continue an existing expert conversation with a user message.
  * Returns the next expert turn.
+ * If onToken is provided, streams tokens to the callback during LLM generation.
  */
 export async function continueExpertConversation(
   conversationId: string,
-  userMessage: string
+  userMessage: string,
+  onToken?: (token: string) => void
 ): Promise<ExpertTurnResult> {
   console.log(
     `[DomainExpert] Continuing conversation ${conversationId}`
@@ -385,10 +387,28 @@ export async function continueExpertConversation(
   let expertTurn: ExpertTurnResult;
   try {
     const client = new XAIClient();
-    const response = await client.chatCompletion(xaiMessages, {
-      responseFormat: { type: "json_object" },
-      temperature: 0.7,
-    });
+    let response: string;
+
+    if (onToken) {
+      // Streaming path: yield tokens to callback
+      const gen = client.chatCompletionStream(xaiMessages, {
+        responseFormat: { type: "json_object" },
+        temperature: 0.7,
+      });
+      let fullText = "";
+      let result = await gen.next();
+      while (!result.done) {
+        fullText += result.value;
+        onToken(result.value);
+        result = await gen.next();
+      }
+      response = result.value || fullText;
+    } else {
+      response = await client.chatCompletion(xaiMessages, {
+        responseFormat: { type: "json_object" },
+        temperature: 0.7,
+      });
+    }
 
     expertTurn = parseExpertResponse(response);
     console.log(

@@ -109,4 +109,86 @@ export class XAIClient {
       throw new Error(`Unknown error calling xAI API: ${error}`);
     }
   }
+
+  /**
+   * Streaming chat completion that yields tokens as they arrive.
+   * Returns the full concatenated text as the generator return value.
+   */
+  async *chatCompletionStream(
+    messages: XAIMessage[],
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      responseFormat?: ResponseFormat;
+    }
+  ): AsyncGenerator<string, string, undefined> {
+    const url = `${this.baseUrl}/chat/completions`;
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      stream: true,
+      temperature: options?.temperature ?? 0,
+      ...(options?.maxTokens && { max_tokens: options.maxTokens }),
+      ...(options?.responseFormat && { response_format: options.responseFormat }),
+    };
+
+    console.log(`[XAIClient] Streaming call to ${url} with model ${this.model}`);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`xAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    if (!response.body) {
+      throw new Error("No response body for streaming");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const payload = trimmed.slice(6);
+          if (payload === "[DONE]") continue;
+
+          try {
+            const chunk = JSON.parse(payload);
+            const delta = chunk.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullText += delta;
+              yield delta;
+            }
+          } catch {
+            // skip malformed chunks
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    console.log(`[XAIClient] Stream complete (${fullText.length} chars)`);
+    return fullText;
+  }
 }

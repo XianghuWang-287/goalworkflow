@@ -34,6 +34,68 @@ export default function CreateGoalPage() {
   const [goalSpec, setGoalSpec] = useState<any>(null);
   const [goalId, setGoalId] = useState<string | null>(null);
   const [violations, setViolations] = useState<any[]>([]);
+  const [generatingStatus, setGeneratingStatus] = useState("Generating your plan...");
+
+  /** Stream plan creation via SSE and handle result/error events */
+  const streamPlanCreation = async (body: Record<string, unknown>) => {
+    setStep("generating");
+    setGeneratingStatus("Generating your plan...");
+
+    const res = await fetch("/api/goals/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, stream: true }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "Failed to create goal");
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("Streaming not supported");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let tokenCount = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(trimmed.slice(6));
+          if (event.type === "status") {
+            setGeneratingStatus(event.message);
+          } else if (event.type === "token") {
+            tokenCount++;
+            if (tokenCount % 20 === 0) {
+              setGeneratingStatus(`Generating your plan... (${tokenCount} tokens)`);
+            }
+          } else if (event.type === "result") {
+            setPlan(event.plan);
+            if (event.goalSpec) setGoalSpec(event.goalSpec);
+            if (event.classification) setClassification(event.classification);
+            setGoalId(event.goalId);
+            setViolations(event.violations || []);
+            setStep("preview");
+            return;
+          } else if (event.type === "error") {
+            throw new Error(event.message);
+          }
+        } catch (e) {
+          if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
+        }
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,21 +120,8 @@ export default function CreateGoalPage() {
         setFirstTurn(data.conversation.firstTurn);
         setStep("conversation");
       } else {
-        // Fast path: create goal directly
-        setStep("generating");
-        const createRes = await fetch("/api/goals/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, category, path: "fast" }),
-        });
-        const createData = await createRes.json();
-        if (!createRes.ok) throw new Error(createData.error);
-
-        setPlan(createData.plan);
-        setGoalSpec(createData.goalSpec);
-        setGoalId(createData.goalId);
-        setViolations(createData.violations || []);
-        setStep("preview");
+        // Fast path: create goal with streaming
+        await streamPlanCreation({ title, category, path: "fast" });
       }
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -82,28 +131,16 @@ export default function CreateGoalPage() {
 
   const handleConversationComplete = async (completedGoalSpec: any) => {
     setGoalSpec(completedGoalSpec);
-    setStep("generating");
 
     try {
-      const res = await fetch("/api/goals/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          category,
-          path: "deep",
-          goalSpec: completedGoalSpec,
-          classification,
-          conversationId,
-        }),
+      await streamPlanCreation({
+        title,
+        category,
+        path: "deep",
+        goalSpec: completedGoalSpec,
+        classification,
+        conversationId,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setPlan(data.plan);
-      setGoalId(data.goalId);
-      setViolations(data.violations || []);
-      setStep("preview");
     } catch (err: any) {
       setError(err.message || "Failed to generate plan");
       setStep("input");
@@ -190,7 +227,7 @@ export default function CreateGoalPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
-            <p className="text-muted-foreground">Generating your plan...</p>
+            <p className="text-muted-foreground">{generatingStatus}</p>
           </CardContent>
         </Card>
       </div>
