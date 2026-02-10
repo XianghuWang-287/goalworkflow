@@ -64,7 +64,7 @@ export function GoalQuestions({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Let's refine your goal</CardTitle>
+        <CardTitle>Let&apos;s refine your goal</CardTitle>
         <CardDescription>
           Question {currentQuestionIndex + 1} of {questions.length}
         </CardDescription>

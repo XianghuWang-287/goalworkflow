@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       {goals.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-gray-600 mb-4">You don't have any goals yet.</p>
+            <p className="text-gray-600 mb-4">You don&apos;t have any goals yet.</p>
             <Link href="/goals/create">
               <Button>Create Your First Goal</Button>
             </Link>
