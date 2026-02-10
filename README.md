@@ -1,6 +1,6 @@
 # GoalFlow
 
-AI-Powered Goal Achievement Web App - MVP (Phase 1-2)
+AI-Powered Goal Achievement Web App - MVP (Phase 1-4)
 
 GoalFlow helps users create goals with minimal input. The system uses AI agents (xAI) to automatically generate executable 7-day workflows, with daily email check-ins and weekly reviews.
 
@@ -8,17 +8,29 @@ GoalFlow helps users create goals with minimal input. The system uses AI agents 
 
 Start here: `docs/00_INDEX.md`
 
-## Features (Phase 1-2)
+## Features (Phase 1-4)
 
+### Phase 1-2 (Core)
 - ✅ User authentication (Credentials-based)
 - ✅ Goal creation with minimal input
 - ✅ AI-powered GoalSpec extraction (xAI)
 - ✅ AI-powered 7-day plan generation (xAI)
 - ✅ Goal dashboard and detail pages
 - ✅ Plan visualization (7-day calendar)
-- ✅ Check-in tracking
+- ✅ Check-in tracking (web)
 - ✅ Streak calculation
 - ✅ Timeline/event log
+
+### Phase 3-4 (Email & Automation)
+- ✅ Email integration (Resend)
+- ✅ Daily check-in reminder emails
+- ✅ OneTimeToken check-in landing pages (`/checkin/[token]`)
+- ✅ Weekly review emails
+- ✅ Weekly review landing pages (`/review/[token]`)
+- ✅ WeeklyReviewer AI agent integration
+- ✅ Plan Patch (adjust next week based on chosen option)
+- ✅ Badge/achievement system
+- ✅ Vercel Cron configuration
 
 ## Tech Stack
 
@@ -27,7 +39,9 @@ Start here: `docs/00_INDEX.md`
 - **Database**: PostgreSQL + Prisma
 - **Auth**: NextAuth.js (Credentials)
 - **AI**: xAI (Grok-4-latest) via OpenAI-style API
+- **Email**: Resend
 - **Validation**: Zod schemas
+- **Deployment**: Vercel (with Cron)
 
 ## Prerequisites
 
@@ -60,6 +74,13 @@ XAI_API_KEY="your-xai-api-key-here"
 XAI_BASE_URL="https://api.x.ai/v1"
 XAI_MODEL="grok-4-latest"
 
+# Email (Resend) - Required for Phase 3-4
+RESEND_API_KEY="your-resend-api-key-here"
+EMAIL_FROM="GoalFlow <noreply@yourdomain.com>"
+
+# Cron Job Security (for production)
+CRON_SECRET="your-cron-secret-here" # Generate with: openssl rand -base64 32
+
 # App
 APP_URL="http://localhost:3000"
 ```
@@ -89,18 +110,30 @@ goalworkflow/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
 │   │   ├── auth/         # Authentication
-│   │   └── goals/        # Goal CRUD
+│   │   ├── badges/       # Badge queries
+│   │   ├── checkin/      # Check-in (web + token)
+│   │   ├── cron/         # Cron job endpoints
+│   │   ├── goals/        # Goal CRUD
+│   │   ├── tokens/       # Token generation
+│   │   └── weekly-review/ # Weekly review APIs
 │   ├── auth/             # Auth pages
+│   ├── checkin/[token]/  # Token check-in landing page
 │   ├── dashboard/        # Dashboard page
 │   ├── goals/            # Goal pages
+│   ├── review/[token]/   # Weekly review landing page
 │   └── layout.tsx        # Root layout
 ├── components/           # React components
 │   └── ui/              # shadcn/ui components
 ├── lib/
 │   ├── agents/          # AI agents
+│   │   ├── goalAnalyzer.ts
 │   │   ├── goalSpecExtractor.ts
 │   │   ├── planGenerator.ts
 │   │   └── weeklyReviewer.ts
+│   ├── email/           # Email service (Resend)
+│   │   ├── index.ts
+│   │   ├── resend.ts
+│   │   └── templates.ts
 │   ├── llm/             # LLM client & guard
 │   │   ├── xaiClient.ts
 │   │   └── jsonGuard.ts
@@ -109,13 +142,16 @@ goalworkflow/
 │   │   ├── plan.ts
 │   │   └── weeklyReview.ts
 │   ├── auth.ts          # NextAuth config
-│   └── prisma.ts        # Prisma client
+│   ├── badges.ts        # Badge service
+│   ├── prisma.ts        # Prisma client
+│   └── tokens.ts        # OneTimeToken utilities
 ├── prompts/             # AI prompts (versioned)
 │   ├── goal_spec_extractor.md
 │   ├── plan_generator.md
 │   └── weekly_reviewer.md
-└── prisma/
-    └── schema.prisma    # Database schema
+├── prisma/
+│   └── schema.prisma    # Database schema
+└── vercel.json          # Vercel Cron configuration
 ```
 
 ## Key Components
@@ -157,13 +193,19 @@ All agents use:
    - Recent check-ins
    - Timeline
 
-## Phase 3-4 (Future)
+## Cron Jobs
 
-- Email job (daily check-ins, weekly reviews)
-- OneTimeToken check-in landing pages
-- Weekly review agent integration
-- Badge system
-- Deployment configuration
+Configured in `vercel.json` for Vercel deployment:
+
+| Job | Schedule | Endpoint |
+|-----|----------|----------|
+| Daily Check-in Emails | 9:00 AM daily | `/api/cron/daily-checkin` |
+| Weekly Review Emails | 10:00 AM Sunday | `/api/cron/weekly-review` |
+
+For local testing, call the endpoints directly with the `CRON_SECRET` header:
+```bash
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" http://localhost:3000/api/cron/daily-checkin
+```
 
 ## Notes
 
