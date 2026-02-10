@@ -9,6 +9,7 @@ import { PlanSchema, Plan } from "../schemas/plan";
 import { GoalSpec } from "../schemas/goalSpec";
 import { Classification } from "../schemas/classification";
 import { UserProfileData } from "../schemas/userProfile";
+import { z } from "zod";
 import { getKnowledge, getKnowledgeForPrompt } from "../knowledge/provider";
 import {
   validatePlan,
@@ -457,7 +458,7 @@ export async function generatePlan(input: {
       plan = await guard.callAndValidate<Plan>(
         currentPrompt,
         systemPrompt,
-        PlanSchema,
+        PlanSchema as z.ZodType<Plan>,
       );
     } catch (error) {
       console.error(`[PlanGenerator] LLM generation failed on attempt ${attempt + 1}:`, error);

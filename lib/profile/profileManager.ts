@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { UserProfileData, UserProfileDataSchema } from "@/lib/schemas/userProfile";
 import { DomainKnowledge } from "@/lib/knowledge/types";
-import type { UserProfile, DomainProfile } from "@prisma/client";
+import type { UserProfile, DomainProfile, Prisma } from "@prisma/client";
 
 export interface OccupiedSlot {
   goalId: string;
@@ -98,10 +98,10 @@ export async function updateDomainProfile(
     create: {
       userId,
       domain,
-      data: mergedData,
+      data: mergedData as Prisma.InputJsonValue,
     },
     update: {
-      data: mergedData,
+      data: mergedData as Prisma.InputJsonValue,
     },
   });
 }

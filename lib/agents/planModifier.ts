@@ -282,7 +282,7 @@ export async function modifyPlanByChat(input: {
   const result = await guard.callAndValidate<ModifierOutput>(
     prompt,
     getSystemPrompt(),
-    ModifierOutputSchema,
+    ModifierOutputSchema as z.ZodType<ModifierOutput>,
   );
 
   const modifiedPlan = result.plan;

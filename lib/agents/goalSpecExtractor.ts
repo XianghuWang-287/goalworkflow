@@ -7,6 +7,7 @@ import { JSONGuard } from "../llm/jsonGuard";
 import { GoalSpecSchema, GoalSpec } from "../schemas/goalSpec";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { z } from "zod";
 
 const PROMPT_VERSION = "v1.0.0";
 
@@ -34,7 +35,27 @@ Return ONLY valid JSON matching this schema:
 }
 
 function getSystemPrompt(): string {
-  return `You are a goal analysis agent. You MUST return ONLY valid JSON, no markdown, no explanations, no code blocks.`;
+  return `You are a goal analysis agent. You MUST return ONLY valid JSON, no markdown, no explanations, no code blocks.
+
+CRITICAL: The JSON must have these exact field types:
+- title: string (required)
+- category: string (optional)
+- description: string (optional)
+- timeframe: string (optional)
+- currentLevel: string (optional)
+- desiredOutcome: string (optional)
+- constraints: ARRAY of strings (optional) - MUST be an array like ["item1", "item2"], NOT a single string!
+
+Example correct output:
+{
+  "title": "Learn Python",
+  "category": "learning",
+  "description": "Learn Python programming",
+  "timeframe": "7 days",
+  "currentLevel": "beginner",
+  "desiredOutcome": "Build basic applications",
+  "constraints": ["limited time", "no prior experience"]
+}`;
 }
 
 function getFallbackTemplate(): GoalSpec {
@@ -67,6 +88,7 @@ export async function extractGoalSpec(
   
   const guard = new JSONGuard({
     maxRetries: 2,
+    schemaName: "GoalSpec",
     fallbackTemplate: () => {
       console.warn(`[GoalSpecExtractor] Using fallback template`);
       return getFallbackTemplate();
@@ -83,12 +105,13 @@ export async function extractGoalSpec(
   if (input.currentLevel) fields.push(`Current Level: ${input.currentLevel}`);
   if (input.desiredOutcome) fields.push(`Desired Outcome: ${input.desiredOutcome}`);
   
-  // Handle constraints - could be array or string
+  // Handle constraints - could be array or string at runtime
   if (input.constraints) {
-    if (Array.isArray(input.constraints) && input.constraints.length > 0) {
-      fields.push(`Constraints: ${input.constraints.join(", ")}`);
-    } else if (typeof input.constraints === "string" && input.constraints.trim()) {
-      fields.push(`Constraints: ${input.constraints}`);
+    const c = input.constraints as string[] | string;
+    if (Array.isArray(c) && c.length > 0) {
+      fields.push(`Constraints: ${c.join(", ")}`);
+    } else if (typeof c === "string" && c.trim()) {
+      fields.push(`Constraints: ${c}`);
     }
   }
   
@@ -108,7 +131,7 @@ Return the GoalSpec JSON object, incorporating all the provided information.`;
     const result = await guard.callAndValidate<GoalSpec>(
       userPrompt,
       getSystemPrompt(),
-      GoalSpecSchema
+      GoalSpecSchema as z.ZodType<GoalSpec>
     );
     console.log(`[GoalSpecExtractor] Successfully extracted goal spec:`, result);
     return result;

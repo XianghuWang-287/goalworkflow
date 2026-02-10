@@ -233,7 +233,6 @@ Please introduce yourself briefly and ask your first question to start gathering
     data: {
       goalId: null,
       agentType: "domain_expert",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       messages: initialState as any,
     },
   });
@@ -288,7 +287,6 @@ Please introduce yourself briefly and ask your first question to start gathering
 
   await prisma.conversation.update({
     where: { id: conversation.id },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: { messages: updatedState as any },
   });
 
