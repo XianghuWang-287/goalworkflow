@@ -47,7 +47,52 @@ async function main() {
     process.exit(1);
   }
 
-  const dayDates: string[] = currentWeek.days.map((d: any) => d.date).slice(0, 7);
+  const originalDates: string[] = currentWeek.days.map((d: any) => d.date).slice(0, 7);
+
+  // Shift plan dates so the last day = today (makes all days "elapsed")
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const lastOriginal = originalDates[originalDates.length - 1];
+
+  // Parse as local dates to avoid UTC timezone shift
+  function parseLocal(s: string) {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const diffDays = Math.round((parseLocal(todayStr).getTime() - parseLocal(lastOriginal).getTime()) / (1000 * 60 * 60 * 24));
+
+  const dayDates: string[] = originalDates.map((dateStr) => {
+    const d = parseLocal(dateStr);
+    d.setDate(d.getDate() + diffDays);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+
+  // Update plan JSON with shifted dates
+  if (diffDays !== 0) {
+    for (let i = 0; i < currentWeek.days.length && i < dayDates.length; i++) {
+      currentWeek.days[i].date = dayDates[i];
+    }
+    await prisma.plan.update({
+      where: { id: activePlan.id },
+      data: { planJson: planJson },
+    });
+    log.info(`Shifted plan dates by ${diffDays} days (last day → ${todayStr})`);
+
+    // Also shift task dates to match
+    for (let i = 0; i < originalDates.length && i < dayDates.length; i++) {
+      const [oy, om, od] = originalDates[i].split("-").map(Number);
+      const oldStart = new Date(oy, om - 1, od, 0, 0, 0, 0);
+      const oldEnd = new Date(oy, om - 1, od + 1, 0, 0, 0, 0);
+      const [ny, nm, nd] = dayDates[i].split("-").map(Number);
+      const newDate = new Date(ny, nm - 1, nd, 0, 0, 0, 0);
+      await prisma.task.updateMany({
+        where: { goalId: goal.id, date: { gte: oldStart, lt: oldEnd } },
+        data: { date: newDate },
+      });
+    }
+    log.dim(`  Updated task dates to match`);
+  }
+
   log.info(`Week ${currentWeekIdx} dates: ${dayDates[0]} → ${dayDates[dayDates.length - 1]}`);
 
   // Create checkins
