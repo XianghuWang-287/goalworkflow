@@ -26,12 +26,31 @@
 
 - **Goal 详情**：`GET /goals/:id`（需登录）
   - 文件：`app/goals/[id]/page.tsx`
-  - 行为：查询 `Goal`（含 active plan、tasks、checkins、eventLogs），渲染：
+  - 行为：查询 `Goal`（含 active plan、tasks、checkins、eventLogs、weeklyReviews），渲染：
     - Today tasks
-    - 7-Day Plan
-    - Week overview
+    - Plan Overview（Day 卡片含 checkin 状态指示：✓ done / ◐ partial / ✗ missed）
+    - Phase 进度条
+    - Plan Version History
     - Recent check-ins
     - Timeline
+    - Weekly Reviews 历史卡片（展示过往 review 的 metrics/wins/blockers/chosen option）
+    - Weekly Review 按钮：
+      - 当前周所有天已过去且都有 checkin 时显示
+      - 有 pending review 时显示"Continue Review"（直接跳转，不重复生成）
+      - review 已完成（chosenOption 已选）后隐藏
+
+- **Authenticated Weekly Review**：`GET /goals/:id/review`（需登录）
+  - 文件：`app/goals/[id]/review/page.tsx`（Client Component）
+  - 行为：GET `/api/weekly-review?goalId=xxx` 获取最新 review，显示 metrics/wins/blockers + 三选项
+  - 选择后 PATCH `/api/weekly-review` 提交 → 生成新 plan → 跳转回 goal detail
+
+- **Token Checkin**：`GET /checkin/:token`
+  - 文件：`app/checkin/[token]/page.tsx`
+  - 行为：通过邮件链接 token 完成 checkin，无需登录
+
+- **Token Weekly Review**：`GET /review/:token`
+  - 文件：`app/review/[token]/page.tsx`
+  - 行为：通过邮件链接 token 查看 review + 选择下周方案，无需登录
 
 ### 3.2 API 路由（`app/api/**`）
 
@@ -95,7 +114,48 @@
   - 400：`{ error }`
   - 500：`{ error }`
 
-### 3.3 UI 组件与交互
+### 3.3 新增 API 路由（Phase 3-5）
+
+#### Checkin
+
+1) `POST /api/checkin`（需登录）
+- 文件：`app/api/checkin/route.ts`
+- 入参：`{ goalId, status: "done"|"partial"|"missed", note? }`
+- 行为：创建 Checkin 记录
+
+2) `POST /api/checkin/token`（Token 鉴权）
+- 文件：`app/api/checkin/token/route.ts`
+- 入参：`{ token, status, note? }`
+- 行为：验证 token → 创建 Checkin
+
+#### Weekly Review
+
+1) `POST /api/weekly-review`（需登录）
+- 生成新的 weekly review（AI 分析 checkin 数据 → metrics/wins/blockers/options）
+
+2) `GET /api/weekly-review?goalId=xxx`（需登录）
+- 获取最新 weekly review
+
+3) `PATCH /api/weekly-review`（需登录）
+- 入参：`{ goalId, optionIndex: 0|1|2 }`
+- 行为：选择下周方案 → 调整 GoalSpec → 生成新 Plan → supersede 旧 Plan → 创建 Tasks → 发放 Badges
+
+4) `GET /api/weekly-review/token?token=xxx`（Token 鉴权）
+- 验证 token + 返回 review 数据
+
+5) `POST /api/weekly-review/token`（Token 鉴权）
+- 入参：`{ token, optionIndex }`
+- 行为：同 PATCH，但通过 token 鉴权
+
+#### Badges / Profile / Tokens / Cron
+
+- `GET /api/badges?goalId=xxx` — 查询徽章
+- `GET|PUT /api/profile` — 用户画像 CRUD
+- `POST /api/tokens` — 生成 one-time token
+- `POST /api/cron/daily-email` — Cron: 发送每日 checkin 邮件
+- `POST /api/cron/weekly-review` — Cron: 触发每周 review 邮件
+
+### 3.4 UI 组件与交互
 
 - Navbar：`components/navbar.tsx`
   - 使用 `useSession()` 判断登录态

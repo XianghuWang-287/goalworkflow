@@ -31,8 +31,14 @@ Deadline-driven plan with milestones working backward from a target date. Durati
 ## Duration
 
 Total duration: **{{DURATION_DAYS}} days**
+Start date: **{{START_DATE}}** (this is today's date — the plan MUST start from this date)
 
 Generate a plan that covers exactly {{DURATION_DAYS}} days organized into weekly blocks. The last week may have fewer than 7 days. Not every day needs tasks — rest days are valid and encouraged for fitness/physical goals.
+
+The exact dates for each day are:
+{{DATE_LIST}}
+
+You MUST use these exact dates. Do NOT invent dates or start from a different date.
 
 ## Goal Specification
 
@@ -63,7 +69,7 @@ Return a JSON object matching this exact structure:
 ```json
 {
   "version": 1,
-  "start_date": "YYYY-MM-DD",
+  "start_date": "{{START_DATE}}",
   "totalDurationDays": {{DURATION_DAYS}},
   "phases": [
     {
@@ -175,7 +181,7 @@ If the goal title or description is in Chinese, generate the plan in Chinese. If
 - Return ONLY the JSON object. No markdown code blocks, no explanations, no text before or after.
 - **tasks MUST be an array of objects**, NOT strings.
 - **Every day object MUST have a "date" field** with a valid ISO date string (YYYY-MM-DD).
-- Calculate dates starting from start_date: day_index 0 = start_date, day_index 1 = start_date + 1 day, etc.
+- Calculate dates starting from start_date ({{START_DATE}}): day_index 0 = {{START_DATE}}, day_index 1 = start_date + 1 day, etc.
 - Ensure day_index values are globally unique and sequential (0 to {{DURATION_DAYS}}-1).
 - week_index values are 0-based and sequential.
 - For simple habit goals: 1-2 tasks per day is sufficient.

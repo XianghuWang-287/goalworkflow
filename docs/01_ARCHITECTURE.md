@@ -1,6 +1,6 @@
-## 1. 总体架构（Phase 1–2）
+## 1. 总体架构（Phase 1–5）
 
-GoalFlow（MVP Phase 1–2）是一个 **Next.js App Router + Prisma(Postgres) + NextAuth(凭证登录) + xAI(grok-4-latest) + Zod** 的全栈应用。
+GoalFlow 是一个 **Next.js App Router + Prisma(Postgres) + NextAuth(凭证登录) + xAI(grok-4-latest) + Zod** 的全栈 AI 目标管理应用。
 
 ### 1.1 模块划分
 
@@ -8,19 +8,36 @@ GoalFlow（MVP Phase 1–2）是一个 **Next.js App Router + Prisma(Postgres) +
   - Landing：`app/page.tsx`
   - Auth：`app/auth/signin/page.tsx`、`app/auth/signup/page.tsx`
   - Dashboard：`app/dashboard/page.tsx`
-  - Create Goal（含问答） ：`app/goals/create/page.tsx`
-  - Goal Detail：`app/goals/[id]/page.tsx`
+  - Create Goal（对话 + 计划预览）：`app/goals/create/page.tsx`
+  - Goal Detail：`app/goals/[id]/page.tsx`（含 checkin 状态指示 + weekly review 入口 + review 历史卡片）
+  - Authenticated Review：`app/goals/[id]/review/page.tsx`
+  - Token Checkin：`app/checkin/[token]/page.tsx`
+  - Token Review：`app/review/[token]/page.tsx`
 - **API Route Handlers**：`app/api/**`
   - NextAuth：`app/api/auth/[...nextauth]/route.ts`
   - Signup：`app/api/auth/signup/route.ts`
-  - Goal Analyze（生成问题）：`app/api/goals/analyze/route.ts`
-  - Goal Create（落库 + 生成计划）：`app/api/goals/create/route.ts`
+  - Goal Analyze：`app/api/goals/analyze/route.ts`
+  - Goal Create：`app/api/goals/create/route.ts`
+  - Goal Conversation：`app/api/goals/conversation/route.ts`（SSE streaming）
+  - Goal Delete：`app/api/goals/[id]/delete/route.ts`
+  - Checkin：`app/api/checkin/route.ts` + `app/api/checkin/token/route.ts`
+  - Weekly Review：`app/api/weekly-review/route.ts`（POST/GET/PATCH）+ `token/route.ts`
+  - Badges：`app/api/badges/route.ts`
+  - Profile：`app/api/profile/route.ts`
+  - Tokens：`app/api/tokens/route.ts`
+  - Cron：`app/api/cron/daily-email/route.ts`、`app/api/cron/weekly-review/route.ts`
+- **AI Agent 系统**：`lib/agents/*`
+  - Classifier → Domain Expert → Plan Generator → Plan Modifier → Weekly Reviewer
+  - Orchestrator 自动路由 fast/deep 路径
 - **业务与基础库**：`lib/**`
-  - Prisma client：`lib/prisma.ts`
-  - NextAuth 配置：`lib/auth.ts`
+  - LLM 封装（sync + streaming）：`lib/llm/xaiClient.ts`、`lib/llm/jsonGuard.ts`
   - Zod schemas：`lib/schemas/*`
-  - LLM 封装：`lib/llm/xaiClient.ts`、`lib/llm/jsonGuard.ts`
-  - AI Agents：`lib/agents/*`
+  - 领域知识库：`lib/knowledge/*`
+  - 约束校验器：`lib/constraints/*`
+  - 用户画像管理：`lib/profile/*`
+  - Email 服务：`lib/email/*`
+  - 徽章系统：`lib/badges.ts`
+  - Token 管理：`lib/tokens.ts`
 - **提示词**：`prompts/*.md`（版本化，写入 DB 的 `Plan.promptVersion`）
 - **数据库 schema**：`prisma/schema.prisma`
 
@@ -61,14 +78,23 @@ GoalFlow（MVP Phase 1–2）是一个 **Next.js App Router + Prisma(Postgres) +
 - **仍失败 fallback**：使用模板生成最小可用的 `GoalSpec/Plan/WeeklyReview`
 - **提示词版本化**：`prompts/*.md` 顶部 `prompt_version`；`Plan.promptVersion` 写入版本字符串（目前写死 `v1.0.0`，后续可改为自动读取 prompt 顶部版本）
 
-### 1.4 MVP 范围声明
+### 1.4 已完成功能范围
 
-Phase 1–2 已打通：
-- Auth、Goal 创建、LLM 结构化+计划生成、落库、Goal 详情展示
+Phase 1–5 已打通：
+- Auth、Goal 创建（对话式 + 快速路径）、智能 Agent 分类/对话/计划生成
+- 领域知识库注入、代码级约束校验、用户画像持久化
+- Email 服务（Resend）、每日 checkin 邮件、每周 review 邮件
+- OneTimeToken checkin/review 落地页
+- Badge 徽章系统
+- Goal Detail 页面（checkin 状态可视化、weekly review 入口）
+- Weekly Review 闭环（checkin → 状态显示 → review 生成 → 选择下周方案 → 新 plan）
+- Weekly Review UX（review 历史卡片、按钮状态管理、防重复生成）
+- SSE Streaming 底层支持（xaiClient + jsonGuard）
+- Plan 版本管理 + 修改历史
 
-未实现（Phase 3–4）：
-- Email/Resend 实发
-- OneTimeToken check-in 落地页
-- WeeklyReviewer 的自动触发与 plan patch 应用
-- 徽章/成就发放逻辑（DB 结构已预留）
+待完善：
+- SSE Streaming 前端 UI 集成
+- Dashboard 统计卡片优化
+- E2E 测试
+- 生产部署配置
 

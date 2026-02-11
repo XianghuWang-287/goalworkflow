@@ -2,6 +2,7 @@
  * Weekly Review API
  * POST /api/weekly-review - Generate and store weekly review
  * GET /api/weekly-review?goalId=xxx - Get latest weekly review for a goal
+ * PATCH /api/weekly-review - Choose option (authenticated)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,10 +10,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyReview, WeeklyReviewInput } from "@/lib/agents/weeklyReviewer";
+import { generatePlan } from "@/lib/agents/planGenerator";
+import { getOrCreateProfile, getOccupiedTimeSlots } from "@/lib/profile/profileManager";
+import { UserProfileData } from "@/lib/schemas/userProfile";
+import { checkAndAwardWeeklyReviewBadges } from "@/lib/badges";
 import { z } from "zod";
 
 const GenerateReviewSchema = z.object({
   goalId: z.string(),
+});
+
+const ChooseOptionSchema = z.object({
+  goalId: z.string(),
+  optionIndex: z.number().int().min(0).max(2),
 });
 
 // POST - Generate a new weekly review
@@ -202,6 +212,173 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Get weekly review error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Choose option (authenticated)
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const parsed = ChooseOptionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { goalId, optionIndex } = parsed.data;
+
+    const goal = await prisma.goal.findFirst({
+      where: { id: goalId, userId: session.user.id },
+    });
+    if (!goal) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+
+    // Get latest pending review
+    const weeklyReview = await prisma.weeklyReview.findFirst({
+      where: { goalId, chosenOption: null },
+      orderBy: { weekIndex: "desc" },
+    });
+    if (!weeklyReview) {
+      return NextResponse.json(
+        { error: "No pending weekly review found" },
+        { status: 404 }
+      );
+    }
+
+    const reviewData = weeklyReview.reviewJson as any;
+    const chosenOption = reviewData.next_week_options[optionIndex];
+    if (!chosenOption) {
+      return NextResponse.json({ error: "Invalid option index" }, { status: 400 });
+    }
+
+    // Get current active plan
+    const currentPlan = await prisma.plan.findFirst({
+      where: { goalId, status: "active" },
+      orderBy: { version: "desc" },
+    });
+
+    if (currentPlan) {
+      await prisma.plan.update({
+        where: { id: currentPlan.id },
+        data: { status: "superseded" },
+      });
+    }
+
+    // Adjust GoalSpec based on chosen option
+    const goalSpec = goal.goalSpecJson as any;
+    let adjustedGoalSpec = { ...goalSpec };
+    if (chosenOption.label === "更快") {
+      adjustedGoalSpec.intensity = "high";
+      adjustedGoalSpec.daily_commitment_minutes = Math.min(
+        (goalSpec.daily_commitment_minutes || 30) * 1.5,
+        120
+      );
+    } else if (chosenOption.label === "更轻松") {
+      adjustedGoalSpec.intensity = "low";
+      adjustedGoalSpec.daily_commitment_minutes = Math.max(
+        (goalSpec.daily_commitment_minutes || 30) * 0.7,
+        15
+      );
+    }
+
+    // Generate new plan
+    const profile = await getOrCreateProfile(goal.userId);
+    const occupiedSlots = await getOccupiedTimeSlots(goal.userId, goalId);
+    const userProfileData: UserProfileData = {
+      wakeUpTime: profile.wakeUpTime ?? undefined,
+      sleepTime: profile.sleepTime ?? undefined,
+      workDays: (profile.workDays as number[]) ?? undefined,
+      availableSlots: (profile.availableSlots as any[]) ?? undefined,
+      timezone: profile.timezone ?? undefined,
+    };
+    const { plan: newPlanData } = await generatePlan({
+      goalSpec: adjustedGoalSpec,
+      classification: {
+        domain: (goal as any).domain || "general",
+        complexity: ((goal as any).complexity as any) || "simple",
+        planStructure: ((goal as any).planStructure as any) || "fixed_cycle",
+        needsDeepConversation: false,
+      },
+      userProfile: userProfileData,
+      occupiedSlots,
+    });
+
+    const newVersion = currentPlan ? currentPlan.version + 1 : 1;
+    const newPlan = await prisma.plan.create({
+      data: {
+        goalId,
+        startDate: new Date(),
+        planJson: newPlanData as any,
+        version: newVersion,
+        status: "active",
+        promptVersion: "v2.0.0",
+      },
+    });
+
+    // Create tasks from new plan
+    const taskStartDate = new Date();
+    taskStartDate.setHours(0, 0, 0, 0);
+    const taskData = newPlanData.weeks.flatMap((week) =>
+      week.days.flatMap((day: any, dayIndex: number) =>
+        (day.tasks as any[]).map((task: any) => {
+          const taskDate = new Date(taskStartDate);
+          taskDate.setDate(taskDate.getDate() + dayIndex);
+          return {
+            goalId,
+            planId: newPlan.id,
+            date: taskDate,
+            dayIndex,
+            taskJson: task as any,
+            status: "pending",
+          };
+        })
+      )
+    );
+    await prisma.task.createMany({ data: taskData });
+
+    // Update weekly review
+    await prisma.weeklyReview.update({
+      where: { id: weeklyReview.id },
+      data: { chosenOption: optionIndex },
+    });
+
+    // Log event
+    await prisma.eventLog.create({
+      data: {
+        goalId,
+        type: "plan_updated",
+        payloadJson: {
+          previousPlanId: currentPlan?.id,
+          newPlanId: newPlan.id,
+          chosenOption: chosenOption.label,
+          weekIndex: weeklyReview.weekIndex,
+          viaAuthenticated: true,
+        },
+      },
+    });
+
+    const newBadges = await checkAndAwardWeeklyReviewBadges(session.user.id, goalId);
+
+    return NextResponse.json({
+      success: true,
+      chosenOption: chosenOption.label,
+      newPlanVersion: newVersion,
+      newBadges: newBadges.length > 0 ? newBadges : undefined,
+    });
+  } catch (error) {
+    console.error("PATCH weekly review error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

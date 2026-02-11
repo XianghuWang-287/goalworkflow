@@ -213,6 +213,8 @@ function buildPrompt(input: {
   let filled = template
     .replace(/\{\{PLAN_STRUCTURE\}\}/g, classification.planStructure)
     .replace(/\{\{DURATION_DAYS\}\}/g, String(durationDays))
+    .replace(/\{\{START_DATE\}\}/g, input.startDate)
+    .replace(/\{\{DATE_LIST\}\}/g, input.dates.map((d, i) => `day_index ${i}: ${d}`).join("\n"))
     .replace(/\{\{GOAL_SPEC\}\}/g, JSON.stringify(goalSpec, null, 2))
     .replace(/\{\{DOMAIN_KNOWLEDGE\}\}/g, domainKnowledge)
     .replace(/\{\{CONSTRAINTS\}\}/g, constraintSummary)
@@ -225,14 +227,14 @@ function buildPrompt(input: {
 /**
  * Build the system prompt for the LLM.
  */
-function getSystemPrompt(planStructure: string, durationDays: number): string {
+function getSystemPrompt(planStructure: string, durationDays: number, startDate: string): string {
   return `You are a planning agent. You MUST return ONLY valid JSON, no markdown, no explanations, no code blocks.
 
 CRITICAL REQUIREMENTS:
 
 1. Each DAY object MUST have ALL these fields:
    - day_index (number, 0-based, global across the plan)
-   - date (string "YYYY-MM-DD") - REQUIRED! Calculate from start_date + day_index
+   - date (string "YYYY-MM-DD") - REQUIRED! The plan starts on ${startDate}. Calculate: day_index 0 = ${startDate}, day_index 1 = ${startDate} + 1 day, etc.
    - tasks (array of task objects, at least 1)
 
 2. Each TASK object MUST have:
@@ -423,6 +425,7 @@ export async function generatePlan(input: {
   const systemPrompt = getSystemPrompt(
     classification.planStructure,
     durationDays,
+    startDate,
   );
 
   // 6. Create JSONGuard with fallback

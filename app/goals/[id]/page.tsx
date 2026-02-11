@@ -18,6 +18,11 @@ import Link from "next/link";
 
 /* ---------- helpers ---------- */
 
+/** Timezone-safe local YYYY-MM-DD (avoids UTC shift from toISOString) */
+function toLocalDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -93,9 +98,13 @@ export default async function GoalDetailPage({
   const currentPhaseIdx = activePlan?.currentPhase ?? 0;
   const currentWeekIdx = activePlan?.currentWeek ?? 0;
 
-  const today = new Date().toISOString().split("T")[0];
-  const todayTasks = goal.tasks.filter(
-    (task) => task.date.toISOString().split("T")[0] === today,
+  const today = toLocalDateStr(new Date());
+  const activePlanId = activePlan?.id;
+  const activeTasks = activePlanId
+    ? goal.tasks.filter((t) => t.planId === activePlanId)
+    : goal.tasks;
+  const todayTasks = activeTasks.filter(
+    (task) => toLocalDateStr(new Date(task.date)) === today,
   );
 
   // Calculate streak
@@ -128,9 +137,9 @@ export default async function GoalDetailPage({
     .reduce((s, p) => s + p.durationWeeks, 0);
   const currentPhase = phases[currentPhaseIdx] as Phase | undefined;
 
-  // Checkin status map (date string → status)
+  // Checkin status map (local date string → status)
   const checkinMap = new Map(
-    goal.checkins.map((c) => [c.date.toISOString().split("T")[0], c.status])
+    goal.checkins.map((c) => [toLocalDateStr(new Date(c.date)), c.status])
   );
 
   // Check if current week's elapsed days all have checkins
@@ -146,13 +155,13 @@ export default async function GoalDetailPage({
     const dateObj = new Date(d.date);
     const prevDay = new Date(dateObj);
     prevDay.setDate(prevDay.getDate() - 1);
-    const prevStr = prevDay.toISOString().split("T")[0];
+    const prevStr = toLocalDateStr(prevDay);
     return checkinMap.has(d.date) || checkinMap.has(prevStr);
   });
+  // Show review button when all elapsed days have checkins (not requiring all days to have elapsed)
   const allCheckedIn =
-    elapsedDays.length >= totalWeekDays &&
-    elapsedWithCheckin.length >= totalWeekDays &&
-    totalWeekDays > 0;
+    elapsedDays.length > 0 &&
+    elapsedWithCheckin.length >= elapsedDays.length;
 
   // Determine weekly review state for current week
   const latestReview = goal.weeklyReviews[0];
