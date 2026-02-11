@@ -178,6 +178,28 @@ function calculateDates(durationDays: number): {
 }
 
 /**
+ * Build a previous context section for continuation plans.
+ */
+function buildPreviousContextSection(ctx: {
+  previousPlanSummary: string;
+  completionHistory: string;
+  chosenDirection: string;
+}): string {
+  return `This is a continuation plan. The user completed a weekly review and chose a direction for the next week.
+
+Previous Plan Summary:
+${ctx.previousPlanSummary}
+
+Completion History:
+${ctx.completionHistory}
+
+Chosen Direction:
+${ctx.chosenDirection}
+
+IMPORTANT: Use this context to create a plan that builds on the user's progress. Do NOT repeat tasks they've already mastered. Adjust difficulty based on their completion history. Honor the chosen direction.`;
+}
+
+/**
  * Build the filled prompt by replacing all template placeholders.
  */
 function buildPrompt(input: {
@@ -191,6 +213,11 @@ function buildPrompt(input: {
   startDate: string;
   dates: string[];
   domainKnowledge: string;
+  previousContext?: {
+    previousPlanSummary: string;
+    completionHistory: string;
+    chosenDirection: string;
+  };
 }): string {
   const {
     template,
@@ -220,6 +247,11 @@ function buildPrompt(input: {
     .replace(/\{\{CONSTRAINTS\}\}/g, constraintSummary)
     .replace(/\{\{USER_PROFILE\}\}/g, profileSummary)
     .replace(/\{\{EXPERT_ADVICE\}\}/g, expertAdvice);
+
+  const previousContextSection = input.previousContext
+    ? buildPreviousContextSection(input.previousContext)
+    : "No previous plan context — this is the first plan.";
+  filled = filled.replace(/\{\{PREVIOUS_CONTEXT\}\}/g, previousContextSection);
 
   return filled;
 }
@@ -365,6 +397,11 @@ export async function generatePlan(input: {
   domainProfile?: DomainProfile | null;
   occupiedSlots: OccupiedSlot[];
   onToken?: (token: string) => void;
+  previousContext?: {
+    previousPlanSummary: string;
+    completionHistory: string;
+    chosenDirection: string;
+  };
 }): Promise<{ plan: Plan; violations: ConstraintViolation[] }> {
   const { goalSpec, classification, userProfile, occupiedSlots } = input;
 
@@ -420,6 +457,7 @@ export async function generatePlan(input: {
     startDate,
     dates,
     domainKnowledge,
+    previousContext: input.previousContext,
   });
 
   const systemPrompt = getSystemPrompt(

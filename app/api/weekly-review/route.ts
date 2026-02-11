@@ -376,6 +376,32 @@ export async function PATCH(req: NextRequest) {
       availableSlots: (profile.availableSlots as any[]) ?? undefined,
       timezone: profile.timezone ?? undefined,
     };
+
+    // Build previous context for plan continuity
+    const currentPlanData = currentPlan?.planJson as any;
+    let previousContext: Parameters<typeof generatePlan>[0]["previousContext"];
+    if (currentPlan) {
+      const planWeeks = currentPlanData?.weeks?.length ?? 0;
+      const planPhases = currentPlanData?.phases?.map((p: any) => `${p.name} (${p.durationWeeks}w)`).join(" → ") || "none";
+      const previousPlanSummary = `${planWeeks}-week plan, phases: ${planPhases}, structure: ${(goal as any).planStructure || "fixed_cycle"}`;
+
+      const allReviews = await prisma.weeklyReview.findMany({
+        where: { goalId, chosenOption: { not: null } },
+        orderBy: { weekIndex: "asc" },
+      });
+      const optionLabels = ["稳妥", "更快", "更轻松"];
+      const historyLines = allReviews.map((r) => {
+        const rd = r.reviewJson as any;
+        return `Week ${r.weekIndex}: ${Math.round((rd?.metrics?.completion_rate ?? 0) * 100)}% → ${optionLabels[r.chosenOption!] ?? "unknown"}`;
+      });
+      const completionHistory = historyLines.length > 0
+        ? historyLines.join("\n")
+        : "First week — no prior history";
+
+      const chosenDirection = `User chose "${chosenOption.label}": ${chosenOption.description}`;
+      previousContext = { previousPlanSummary, completionHistory, chosenDirection };
+    }
+
     const { plan: newPlanData } = await generatePlan({
       goalSpec: adjustedGoalSpec,
       classification: {
@@ -386,6 +412,7 @@ export async function PATCH(req: NextRequest) {
       },
       userProfile: userProfileData,
       occupiedSlots,
+      previousContext,
     });
 
     const newVersion = currentPlan ? currentPlan.version + 1 : 1;

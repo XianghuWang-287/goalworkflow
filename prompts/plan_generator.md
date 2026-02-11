@@ -62,6 +62,10 @@ You MUST use these exact dates. Do NOT invent dates or start from a different da
 
 {{EXPERT_ADVICE}}
 
+## Previous Context
+
+{{PREVIOUS_CONTEXT}}
+
 ## Output Schema
 
 Return a JSON object matching this exact structure:
