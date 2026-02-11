@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateWeeklyReview, WeeklyReviewInput } from "@/lib/agents/weeklyReviewer";
+import { generateWeeklyReview, WeeklyReviewInput, extractPhaseInfo } from "@/lib/agents/weeklyReviewer";
 import { generatePlan } from "@/lib/agents/planGenerator";
 import { getOrCreateProfile, getOccupiedTimeSlots } from "@/lib/profile/profileManager";
 import { UserProfileData } from "@/lib/schemas/userProfile";
@@ -63,6 +63,10 @@ export async function POST(req: NextRequest) {
         },
         weeklyReviews: {
           orderBy: { weekIndex: "desc" },
+        },
+        plans: {
+          where: { status: "active" },
+          orderBy: { version: "desc" },
           take: 1,
         },
       },
@@ -104,6 +108,70 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Build goal context
+    const goalSpec = goal.goalSpecJson as any;
+    const goalContext = goalSpec ? {
+      title: goalSpec.title || goal.title,
+      description: goalSpec.description,
+      desiredOutcome: goalSpec.desiredOutcome,
+      category: goalSpec.category || goal.category,
+      planStructure: goalSpec.planStructure || (goal as any).planStructure,
+      targetMetrics: goalSpec.targetMetrics,
+    } : undefined;
+
+    // Build current plan summary
+    const activePlan = goal.plans[0];
+    const planData = activePlan?.planJson as any;
+    let currentPlanSummary: WeeklyReviewInput["currentPlanSummary"];
+    let phaseInfo: WeeklyReviewInput["phaseInfo"] = undefined;
+    if (planData) {
+      currentPlanSummary = {
+        weekCount: planData.weeks?.length ?? 0,
+        currentWeek: activePlan.currentWeek ?? 0,
+        phases: planData.phases?.map((p: any) => ({
+          name: p.name,
+          focus: p.focus,
+          durationWeeks: p.durationWeeks,
+        })),
+        currentPhaseIndex: activePlan.currentPhase ?? 0,
+      };
+      if (planData.phases && planData.phases.length > 0) {
+        phaseInfo = extractPhaseInfo(activePlan);
+      }
+    }
+
+    // Build review history from completed reviews
+    const completedReviews = goal.weeklyReviews.filter((r) => r.chosenOption !== null);
+    const reviewHistory = completedReviews.map((r) => {
+      const rData = r.reviewJson as any;
+      const optionLabels = ["稳妥", "更快", "更轻松"];
+      return {
+        weekIndex: r.weekIndex,
+        completionRate: rData?.metrics?.completion_rate ?? 0,
+        chosenOption: optionLabels[r.chosenOption!] ?? `option ${r.chosenOption}`,
+      };
+    });
+
+    // Build task details from this week's tasks
+    let taskDetails: WeeklyReviewInput["taskDetails"];
+    if (activePlan) {
+      const weekTasks = await prisma.task.findMany({
+        where: {
+          goalId,
+          planId: activePlan.id,
+          date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
+      });
+      if (weekTasks.length > 0) {
+        taskDetails = weekTasks.map((t) => ({
+          title: (t.taskJson as any)?.title || "Unknown task",
+          status: t.status as "done" | "partial" | "missed",
+          specificValues: (t.taskJson as any)?.specificValues,
+          timeSlot: (t.taskJson as any)?.timeSlot,
+        }));
+      }
+    }
+
     // Prepare input for WeeklyReviewer
     const reviewInput: WeeklyReviewInput = {
       weekIndex,
@@ -120,6 +188,11 @@ export async function POST(req: NextRequest) {
         status: c.status as "done" | "partial" | "missed",
         note: c.note || undefined,
       })),
+      goalContext,
+      currentPlanSummary,
+      phaseInfo,
+      taskDetails,
+      reviewHistory: reviewHistory.length > 0 ? reviewHistory : undefined,
     };
 
     // Generate weekly review using AI

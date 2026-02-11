@@ -206,6 +206,26 @@ export interface WeeklyReviewInput {
   /** Phase-aware fields (optional for backward compat) */
   phaseInfo?: PhaseInfo | null;
   taskDetails?: TaskCompletionDetail[];
+  /** Closed-loop context fields */
+  goalContext?: {
+    title: string;
+    description?: string;
+    desiredOutcome?: string;
+    category?: string;
+    planStructure?: string;
+    targetMetrics?: Record<string, any>;
+  };
+  currentPlanSummary?: {
+    weekCount: number;
+    currentWeek: number;
+    phases?: Array<{ name: string; focus: string; durationWeeks: number }>;
+    currentPhaseIndex: number;
+  };
+  reviewHistory?: Array<{
+    weekIndex: number;
+    completionRate: number;
+    chosenOption: string;
+  }>;
 }
 
 export async function generateWeeklyReview(
@@ -249,10 +269,43 @@ ${taskLines.join("\n")}
 `;
   }
 
+  // --- Goal context section ---
+  let goalContextSection = "";
+  if (input.goalContext) {
+    const gc = input.goalContext;
+    const lines = [`Goal Context:`, `- Title: ${gc.title}`];
+    if (gc.description) lines.push(`- Description: ${gc.description}`);
+    if (gc.desiredOutcome) lines.push(`- Desired Outcome: ${gc.desiredOutcome}`);
+    if (gc.category) lines.push(`- Category: ${gc.category}`);
+    if (gc.planStructure) lines.push(`- Plan Structure: ${gc.planStructure}`);
+    if (gc.targetMetrics) lines.push(`- Target Metrics: ${JSON.stringify(gc.targetMetrics)}`);
+    goalContextSection = "\n" + lines.join("\n") + "\n";
+  }
+
+  // --- Current plan summary section ---
+  let planSummarySection = "";
+  if (input.currentPlanSummary) {
+    const ps = input.currentPlanSummary;
+    const lines = [`Current Plan:`, `- ${ps.weekCount} weeks total, currently on week ${ps.currentWeek + 1}`];
+    if (ps.phases && ps.phases.length > 0) {
+      lines.push(`- Phases: ${ps.phases.map((p, i) => `${i === ps.currentPhaseIndex ? "→ " : ""}${p.name} (${p.durationWeeks}w, focus: ${p.focus})`).join("; ")}`);
+    }
+    planSummarySection = "\n" + lines.join("\n") + "\n";
+  }
+
+  // --- Review history section ---
+  let reviewHistorySection = "";
+  if (input.reviewHistory && input.reviewHistory.length > 0) {
+    const histLines = input.reviewHistory.map(
+      (r) => `  - Week ${r.weekIndex}: ${Math.round(r.completionRate * 100)}% completion → chose "${r.chosenOption}"`
+    );
+    reviewHistorySection = `\nPrevious Weeks:\n${histLines.join("\n")}\n`;
+  }
+
   const userPrompt = `${prompt}
 
 Generate a weekly review for week ${input.weekIndex}:
-${phaseContext}
+${goalContextSection}${planSummarySection}${reviewHistorySection}${phaseContext}
 Metrics:
 ${JSON.stringify(input.metrics, null, 2)}
 
