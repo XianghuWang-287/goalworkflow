@@ -10,7 +10,12 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "sim:checkins": "tsx scripts/simulate-checkins.ts",
+    "email:daily": "tsx scripts/trigger-email.ts daily",
+    "email:weekly": "tsx scripts/trigger-email.ts weekly",
+    "goal:reset": "npx tsx scripts/reset-goal.ts",
+    "goal:simulate": "npx tsx scripts/simulate-week.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
@@ -40,6 +45,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "dotenv": "^17.2.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.18",
     "postcss": "^8.4.40",
