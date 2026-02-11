@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Plan, Day, Task, Phase } from "@/lib/schemas/plan";
 import { DeleteGoalButton } from "@/components/DeleteGoalButton";
+import { WeeklyReviewButton } from "@/components/WeeklyReviewButton";
 import { TaskCard } from "@/components/task-card";
 import Link from "next/link";
 
@@ -66,11 +67,13 @@ export default async function GoalDetailPage({
       },
       checkins: {
         orderBy: { date: "desc" },
-        take: 7,
       },
       eventLogs: {
         orderBy: { createdAt: "desc" },
         take: 20,
+      },
+      weeklyReviews: {
+        orderBy: { weekIndex: "desc" },
       },
     },
   });
@@ -124,6 +127,39 @@ export default async function GoalDetailPage({
     .slice(0, currentPhaseIdx)
     .reduce((s, p) => s + p.durationWeeks, 0);
   const currentPhase = phases[currentPhaseIdx] as Phase | undefined;
+
+  // Checkin status map (date string → status)
+  const checkinMap = new Map(
+    goal.checkins.map((c) => [c.date.toISOString().split("T")[0], c.status])
+  );
+
+  // Check if current week's elapsed days all have checkins
+  const currentWeek = planData?.weeks?.find(
+    (w) => w.week_index === currentWeekIdx
+  );
+  const currentWeekDays = currentWeek?.days ?? [];
+  const totalWeekDays = currentWeekDays.length;
+
+  // Only count days that have already passed (including today)
+  const elapsedDays = currentWeekDays.filter((d) => d.date <= today);
+  const elapsedWithCheckin = elapsedDays.filter((d) => {
+    const dateObj = new Date(d.date);
+    const prevDay = new Date(dateObj);
+    prevDay.setDate(prevDay.getDate() - 1);
+    const prevStr = prevDay.toISOString().split("T")[0];
+    return checkinMap.has(d.date) || checkinMap.has(prevStr);
+  });
+  const allCheckedIn =
+    elapsedDays.length >= totalWeekDays &&
+    elapsedWithCheckin.length >= totalWeekDays &&
+    totalWeekDays > 0;
+
+  // Determine weekly review state for current week
+  const latestReview = goal.weeklyReviews[0];
+  const hasReviewForCurrentWeek = latestReview?.weekIndex === currentWeekIdx;
+  const reviewCompleted = hasReviewForCurrentWeek && latestReview.chosenOption !== null;
+  const reviewPending = hasReviewForCurrentWeek && latestReview.chosenOption === null;
+  const showReviewButton = allCheckedIn && !reviewCompleted;
 
   // Plan versions
   const planVersions = activePlan?.versions ?? [];
@@ -351,6 +387,12 @@ export default async function GoalDetailPage({
             跟 AI 调整
           </Button>
         </Link>
+        {showReviewButton && <WeeklyReviewButton goalId={goal.id} />}
+        {reviewPending && !allCheckedIn && (
+          <Link href={`/goals/${goal.id}/review`}>
+            <Button variant="outline">Continue Review</Button>
+          </Link>
+        )}
       </div>
 
       {/* ===== Plan Overview (Multi-week) ===== */}
@@ -379,14 +421,33 @@ export default async function GoalDetailPage({
                     )}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {week.days.map((day: Day) => (
+                    {week.days.map((day: Day) => {
+                      const dayStatus = checkinMap.get(day.date);
+                      const borderColor =
+                        dayStatus === "done"
+                          ? "border-l-4 border-l-green-500"
+                          : dayStatus === "partial"
+                          ? "border-l-4 border-l-yellow-500"
+                          : dayStatus === "missed"
+                          ? "border-l-4 border-l-red-500"
+                          : "";
+                      return (
                       <div
                         key={day.day_index}
-                        className="border rounded-lg p-3"
+                        className={`border rounded-lg p-3 ${borderColor}`}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">
+                          <span className="text-sm font-medium flex items-center gap-1">
                             Day {day.day_index + 1}
+                            {dayStatus === "done" && (
+                              <span className="text-green-600" title="Done">✓</span>
+                            )}
+                            {dayStatus === "partial" && (
+                              <span className="text-yellow-600" title="Partial">◐</span>
+                            )}
+                            {dayStatus === "missed" && (
+                              <span className="text-red-600" title="Missed">✗</span>
+                            )}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {day.date}
@@ -409,7 +470,8 @@ export default async function GoalDetailPage({
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -509,6 +571,83 @@ export default async function GoalDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* ===== Review History ===== */}
+      {goal.weeklyReviews.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Weekly Reviews</CardTitle>
+            <CardDescription>
+              {goal.weeklyReviews.length} review{goal.weeklyReviews.length > 1 ? "s" : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {goal.weeklyReviews.map((wr) => {
+                const review = wr.reviewJson as any;
+                const metrics = review?.metrics;
+                const wins: string[] = review?.wins ?? [];
+                const blockers: string[] = review?.blockers ?? [];
+                const options = review?.next_week_options ?? [];
+                const chosen = wr.chosenOption;
+
+                return (
+                  <div key={wr.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-semibold">
+                        Week {wr.weekIndex + 1} Review
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {chosen !== null ? (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                            Pending
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(wr.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    {metrics && (
+                      <div className="flex gap-4 mb-3 text-sm">
+                        <span>
+                          Completion: <strong>{Math.round(metrics.completion_rate)}%</strong>
+                        </span>
+                        <span className="text-green-700">Done: {metrics.done_count}</span>
+                        <span className="text-yellow-700">Partial: {metrics.partial_count}</span>
+                        <span className="text-red-700">Missed: {metrics.missed_count}</span>
+                      </div>
+                    )}
+                    {wins.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-xs font-medium text-green-700">Wins:</span>
+                        <span className="text-sm text-gray-600 ml-1">{wins.join(", ")}</span>
+                      </div>
+                    )}
+                    {blockers.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-xs font-medium text-red-700">Blockers:</span>
+                        <span className="text-sm text-gray-600 ml-1">{blockers.join(", ")}</span>
+                      </div>
+                    )}
+                    {chosen !== null && options[chosen] && (
+                      <div className="mt-2 pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">
+                          Chosen: <strong>{options[chosen].label}</strong> — {options[chosen].description}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ===== Timeline ===== */}
       <Card>
